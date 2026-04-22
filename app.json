@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "VeriCash",
+    "slug": "vericash",
+    "scheme": "vericash",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#162e51"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vericash.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "VeriCash needs camera access to scan banknotes.",
+        "NSPhotoLibraryUsageDescription": "VeriCash needs photo library access to upload banknote images."
+      }
+    },
+    "android": {
+      "package": "com.vericash.app",
+      "versionCode": 1,
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#162e51"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        { "cameraPermission": "VeriCash needs camera access to scan banknotes." }
+      ],
+      [
+        "expo-image-picker",
+        { "photosPermission": "VeriCash needs photo access to upload banknote images." }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://10.0.2.2:8001",
+      "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
+    }
+  }
+}

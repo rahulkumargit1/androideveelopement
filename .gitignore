@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+android/
+ios/
+*.jks
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.env
+.env.local
