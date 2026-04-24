@@ -43,7 +43,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://10.0.2.2:8001",
+      "apiUrl": "https://vericash-inspector.loca.lt",
       "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
     }
   }
