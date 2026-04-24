@@ -1,17 +1,50 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, StyleSheet, StatusBar as RNStatusBar, Platform } from "react-native";
+import {
+  View, Text, StyleSheet,
+  StatusBar as RNStatusBar, Platform,
+} from "react-native";
 
-const NAV = "#162e51";
-const GOLD = "#ffbc78";
-const ACTIVE = "#ffbc78";
+const NAV      = "#162e51";
+const GOLD     = "#ffbc78";
+const ACTIVE   = "#ffbc78";
 const INACTIVE = "#8a96b2";
 
-// Height of the Android status bar (0 on iOS — tabs handle safe area)
 const SB_H = Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 0;
 
-/** Gold government banner — extends behind the translucent status bar on Android */
+/* ── Logo title: star icon + wordmark side-by-side (Scan screen header) ─── */
+function LogoTitle() {
+  return (
+    <View style={logo.row}>
+      <View style={logo.circle}>
+        <Ionicons name="star" size={16} color={GOLD} />
+      </View>
+      <Text style={logo.wordmark}>VeriCash</Text>
+    </View>
+  );
+}
+
+const logo = StyleSheet.create({
+  row:      { flexDirection: "row", alignItems: "center", gap: 9 },
+  circle:   {
+    width: 34, height: 34,
+    borderRadius: 17,
+    backgroundColor: "#1a4480",
+    borderWidth: 1.5,
+    borderColor: GOLD,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wordmark: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+});
+
+/* ── Gold government strip ───────────────────────────────────────────────── */
 function GovStrip() {
   return (
     <View style={strip.wrap}>
@@ -23,7 +56,7 @@ function GovStrip() {
 const strip = StyleSheet.create({
   wrap: {
     backgroundColor: GOLD,
-    paddingTop: SB_H + 4,   // push text below the status bar icons
+    paddingTop: SB_H + 4,
     paddingBottom: 5,
     paddingHorizontal: 16,
     alignItems: "center",
@@ -40,23 +73,24 @@ const strip = StyleSheet.create({
 export default function Layout() {
   return (
     <>
-      {/* translucent=true lets gold strip bleed through status bar area */}
       <StatusBar style="dark" backgroundColor={GOLD} translucent />
       <GovStrip />
       <Tabs
         screenOptions={{
-          headerStyle: { backgroundColor: NAV },
-          headerTintColor: "#fff",
-          headerTitleStyle: { fontWeight: "700", fontSize: 16, letterSpacing: 0.2 },
+          headerStyle:       { backgroundColor: NAV, height: 62 },
+          headerTintColor:   "#fff",
+          headerTitleStyle:  { fontWeight: "700", fontSize: 16, letterSpacing: 0.2 },
           headerShadowVisible: false,
+          /* Push title down slightly from the GovStrip */
+          headerTitleContainerStyle: { paddingTop: 6 },
           tabBarStyle: {
             backgroundColor: NAV,
-            borderTopColor: "#243657",
-            borderTopWidth: 1,
-            paddingTop: 4,
-            height: 60,
+            borderTopColor:  "#243657",
+            borderTopWidth:  1,
+            paddingTop:      4,
+            height:          60,
           },
-          tabBarActiveTintColor: ACTIVE,
+          tabBarActiveTintColor:   ACTIVE,
           tabBarInactiveTintColor: INACTIVE,
           tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginBottom: 4 },
         }}
@@ -68,7 +102,10 @@ export default function Layout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="scan-outline" size={size} color={color} />
             ),
-            headerTitle: "VeriCash",
+            /* Custom logo+title header for Scan screen */
+            headerTitle: () => <LogoTitle />,
+            headerTitleAlign: "left",
+            headerLeftContainerStyle: { paddingLeft: 0 },
           }}
         />
         <Tabs.Screen
