@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   ScrollView,
   View,
@@ -60,8 +60,11 @@ export default function HistoryScreen() {
   const [err, setErr]           = useState<string | null>(null);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const loadingRef = useRef(false);
 
   const load = useCallback(async (silent = false) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     if (!silent) setLoading(true);
     setErr(null);
     try {
@@ -72,6 +75,7 @@ export default function HistoryScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadingRef.current = false;
     }
   }, []);
 

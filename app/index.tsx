@@ -59,6 +59,7 @@ export default function ScanScreen() {
   const [scanStep, setScanStep]   = useState("");
   const [result, setResult]       = useState<ScanResult | null>(null);
   const cam = useRef<CameraView | null>(null);
+  const stepInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Currency selector state
   const [currencies, setCurrencies]   = useState<CurrencyConfig[]>(FALLBACK_CURRENCIES);
@@ -79,6 +80,10 @@ export default function ScanScreen() {
         }
       })
       .catch(() => {/* keep fallback */});
+  }, []);
+
+  useEffect(() => {
+    return () => { if (stepInterval.current) clearInterval(stepInterval.current); };
   }, []);
 
   async function snap() {
@@ -104,7 +109,7 @@ export default function ScanScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.9,
     });
-    if (!res.canceled && res.assets[0]) {
+    if (!res.canceled && res.assets && res.assets.length > 0) {
       setBusy(true);
       startStepCycle();
       try {
@@ -117,14 +122,13 @@ export default function ScanScreen() {
   }
 
   function startStepCycle() {
+    if (stepInterval.current) clearInterval(stepInterval.current);
     let i = 0;
     setScanStep(SCAN_STEPS[0]);
-    const iv = setInterval(() => {
+    stepInterval.current = setInterval(() => {
       i = (i + 1) % SCAN_STEPS.length;
       setScanStep(SCAN_STEPS[i]);
     }, 900);
-    // Store so we can clear it
-    (startStepCycle as any)._iv = iv;
   }
 
   async function runScan(uri: string) {
@@ -135,7 +139,7 @@ export default function ScanScreen() {
     } catch (e: any) {
       Alert.alert("Scan failed", e.message);
     } finally {
-      clearInterval((startStepCycle as any)._iv);
+      if (stepInterval.current) { clearInterval(stepInterval.current); stepInterval.current = null; }
     }
   }
 

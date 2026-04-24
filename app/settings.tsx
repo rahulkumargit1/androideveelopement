@@ -37,11 +37,20 @@ function ServerSection() {
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    SecureStore.getItemAsync(API_URL_KEY).then((v) => {
-      const val = v || api.apiBase;
-      setUrl(val);
-      setSaved(val);
-    }).finally(() => setLoading(false));
+    const load = async () => {
+      try {
+        const v = await SecureStore.getItemAsync(API_URL_KEY);
+        const val = v || api.apiBase;
+        setUrl(val);
+        setSaved(val);
+      } catch {
+        setUrl(api.apiBase);
+        setSaved(api.apiBase);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   async function save() {
@@ -57,14 +66,12 @@ function ServerSection() {
     if (!target) { Alert.alert("Enter a server URL first"); return; }
     setTesting(true);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch(`${target}/`, { signal: controller.signal });
-      clearTimeout(timer);
       const data = await res.json();
-      Alert.alert("Connected ✓", `${target}\n\nResponse: ${JSON.stringify(data).slice(0, 120)}`);
+      Alert.alert("Connected ✓", `${target}\n\n${JSON.stringify(data).slice(0, 120)}`);
     } catch (e: any) {
-      clearTimeout(timer);
       Alert.alert("Connection failed", `${target}\n\n${e.message}`);
     } finally {
       clearTimeout(timer);
@@ -183,9 +190,15 @@ function DetectionSection() {
   }, []);
 
   async function save() {
+    const authVal = Number(auth);
+    const suspVal = Number(susp);
+    if (isNaN(authVal) || isNaN(suspVal) || authVal < 0 || authVal > 1 || suspVal < 0 || suspVal > 1) {
+      Alert.alert("Invalid", "Thresholds must be numbers between 0 and 1.");
+      return;
+    }
     try {
-      await api.setSetting("authentic_threshold", Number(auth));
-      await api.setSetting("suspicious_threshold", Number(susp));
+      await api.setSetting("authentic_threshold", authVal);
+      await api.setSetting("suspicious_threshold", suspVal);
       Alert.alert("Saved", "Thresholds updated.");
     } catch (e: any) { Alert.alert("Error", e.message); }
   }
