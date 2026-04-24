@@ -1,13 +1,17 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, StatusBar as RNStatusBar, Platform } from "react-native";
 
 const NAV = "#162e51";
+const GOLD = "#ffbc78";
 const ACTIVE = "#ffbc78";
 const INACTIVE = "#8a96b2";
 
-/** Thin gold-strip banner at very top — mirrors web .gov-strip */
+// Height of the Android status bar (0 on iOS — tabs handle safe area)
+const SB_H = Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 0;
+
+/** Gold government banner — extends behind the translucent status bar on Android */
 function GovStrip() {
   return (
     <View style={strip.wrap}>
@@ -18,8 +22,9 @@ function GovStrip() {
 
 const strip = StyleSheet.create({
   wrap: {
-    backgroundColor: "#ffbc78",
-    paddingVertical: 4,
+    backgroundColor: GOLD,
+    paddingTop: SB_H + 4,   // push text below the status bar icons
+    paddingBottom: 5,
     paddingHorizontal: 16,
     alignItems: "center",
   },
@@ -27,7 +32,7 @@ const strip = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.6,
-    color: "#162e51",
+    color: NAV,
     textTransform: "uppercase",
   },
 });
@@ -35,7 +40,8 @@ const strip = StyleSheet.create({
 export default function Layout() {
   return (
     <>
-      <StatusBar style="light" backgroundColor={NAV} />
+      {/* translucent=true lets gold strip bleed through status bar area */}
+      <StatusBar style="dark" backgroundColor={GOLD} translucent />
       <GovStrip />
       <Tabs
         screenOptions={{
