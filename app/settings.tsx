@@ -69,8 +69,16 @@ function ServerSection() {
     const timer = setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch(`${target}/`, { signal: controller.signal });
-      const data = await res.json();
-      Alert.alert("Connected ✓", `${target}\n\n${JSON.stringify(data).slice(0, 120)}`);
+      const text = await res.text();
+      let preview: string;
+      try {
+        const data = JSON.parse(text);
+        preview = JSON.stringify(data).slice(0, 120);
+      } catch {
+        // localtunnel shows an HTML interstitial on first visit
+        preview = text.slice(0, 120).replace(/<[^>]+>/g, "").trim() || "(non-JSON response)";
+      }
+      Alert.alert(res.ok ? "Connected ✓" : `HTTP ${res.status}`, `${target}\n\n${preview}`);
     } catch (e: any) {
       Alert.alert("Connection failed", `${target}\n\n${e.message}`);
     } finally {
