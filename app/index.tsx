@@ -14,9 +14,24 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
 import { api, ScanResult, CurrencyConfig } from "../src/api/client";
 import ResultCard from "../src/components/ResultCard";
+
+/* Compress image to ≤1000px wide, 0.5 quality → ~100–200 KB over the tunnel */
+async function compressImage(uri: string): Promise<string> {
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1000 } }],
+      { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return result.uri;
+  } catch {
+    return uri; // fall back to original if manipulation fails
+  }
+}
 
 /* ── Design tokens ───────────────────────────────────────────────── */
 const T = {
@@ -41,7 +56,7 @@ const SCAN_STEPS = [
   "Analysing colour spaces (Lab)…",
   "Running BankNote-Net classifier…",
   "Aggregating ensemble scores…",
-  "Finalising verdict… (may take up to 60s)",
+  "Finalising verdict…",
 ];
 
 const FALLBACK_CURRENCIES: CurrencyConfig[] = [
@@ -97,7 +112,10 @@ export default function ScanScreen() {
         quality: 0.85,
         skipProcessing: false,
       });
-      if (photo?.uri) await runScan(photo.uri);
+      if (photo?.uri) {
+        const compressed = await compressImage(photo.uri);
+        await runScan(compressed);
+      }
     } catch (e: any) {
       Alert.alert("Capture failed", e.message);
     } finally {
@@ -115,7 +133,8 @@ export default function ScanScreen() {
       setBusy(true);
       startStepCycle();
       try {
-        await runScan(res.assets[0].uri);
+        const compressed = await compressImage(res.assets[0].uri);
+        await runScan(compressed);
       } finally {
         setBusy(false);
         setScanStep("");
