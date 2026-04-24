@@ -19,13 +19,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { api, ScanResult, CurrencyConfig } from "../src/api/client";
 import ResultCard from "../src/components/ResultCard";
 
-/* Compress image to ≤1000px wide, 0.5 quality → ~100–200 KB over the tunnel */
+/* Compress image before upload.
+ * 1200px wide + 0.75 quality → ~250-350 KB (10× smaller than raw camera)
+ * Preserves enough detail for FFT micro-print, Lab colour and edge analysis.
+ * Lower quality (e.g. 0.5) introduces JPEG artefacts that corrupt sharpness
+ * and frequency-domain scores — 0.75 is the accuracy/size sweet spot. */
 async function compressImage(uri: string): Promise<string> {
   try {
     const result = await ImageManipulator.manipulateAsync(
       uri,
-      [{ resize: { width: 1000 } }],
-      { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+      [{ resize: { width: 1200 } }],
+      { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
     );
     return result.uri;
   } catch {
