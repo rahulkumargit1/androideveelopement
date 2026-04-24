@@ -54,6 +54,8 @@ async function req<T>(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_
   if (init.body && !(init.body instanceof FormData)) {
     headers["Content-Type"] = headers["Content-Type"] || "application/json";
   }
+  // Bypass localtunnel HTML interstitial that appears for new IPs
+  headers["bypass-tunnel-reminder"] = "true";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
@@ -110,7 +112,10 @@ export const api = {
     try {
       const res = await fetch(`${_baseUrl}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "bypass-tunnel-reminder": "true",
+        },
         body: form.toString(),
         signal: controller.signal,
       });
