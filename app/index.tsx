@@ -39,7 +39,9 @@ const SCAN_STEPS = [
   "Transforming to frequency domain…",
   "Detecting morphological features…",
   "Analysing colour spaces (Lab)…",
+  "Running BankNote-Net classifier…",
   "Aggregating ensemble scores…",
+  "Finalising verdict… (may take up to 60s)",
 ];
 
 const FALLBACK_CURRENCIES: CurrencyConfig[] = [

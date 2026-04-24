@@ -168,8 +168,8 @@ function GovStrip() {
 const strip = StyleSheet.create({
   wrap: {
     backgroundColor: GOLD,
-    paddingTop: SB_H + 4,
-    paddingBottom: 5,
+    paddingTop: SB_H + 8,
+    paddingBottom: 6,
     paddingHorizontal: 16,
     alignItems: "center",
   },

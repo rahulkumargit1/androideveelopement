@@ -15,7 +15,7 @@ const _urlReady: Promise<void> = SecureStore.getItemAsync(API_URL_KEY)
   .catch(() => {});
 
 const DEFAULT_TIMEOUT_MS = 15000;
-const SCAN_TIMEOUT_MS = 45000; // scans take longer (ML inference)
+const SCAN_TIMEOUT_MS = 120000; // 2 min — ML inference + localtunnel can be slow
 
 export type Verdict = "authentic" | "suspicious" | "counterfeit";
 
