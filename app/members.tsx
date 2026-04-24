@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Linking,
   RefreshControl,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { api, TeamMember } from "../src/api/client";
@@ -54,6 +55,7 @@ export default function MembersScreen() {
   }
 
   return (
+    <SafeAreaView style={s.safeArea}>
     <ScrollView
       style={s.page}
       contentContainerStyle={s.pageContent}
@@ -114,6 +116,7 @@ export default function MembersScreen() {
         </View>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -157,6 +160,7 @@ function MemberCard({ m }: { m: TeamMember }) {
 }
 
 const s = StyleSheet.create({
+  safeArea:    { flex: 1, backgroundColor: T.navy },
   page:        { flex: 1, backgroundColor: T.bg },
   pageContent: { paddingBottom: 48 },
 
@@ -227,7 +231,7 @@ const s = StyleSheet.create({
   },
 
   /* List */
-  list: { paddingHorizontal: 16, gap: 12 },
+  list: { paddingHorizontal: 16, gap: 12, paddingBottom: 8 },
 
   /* Empty */
   empty: {

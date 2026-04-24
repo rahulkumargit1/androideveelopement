@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, Switch, ActivityIndicator
+  StyleSheet, Alert, Switch, ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
@@ -12,16 +13,19 @@ const API_URL_KEY = "vc_api_url";
 
 export default function SettingsScreen() {
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: 16, gap: 12 }}
-    >
-      <ServerSection />
-      <AccountSection />
-      <DetectionSection />
-      <CurrenciesSection />
-      <AboutSection />
-    </ScrollView>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, gap: 12 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ServerSection />
+        <AccountSection />
+        <DetectionSection />
+        <CurrenciesSection />
+        <AboutSection />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -34,7 +38,7 @@ function ServerSection() {
 
   useEffect(() => {
     SecureStore.getItemAsync(API_URL_KEY).then((v) => {
-      const val = v || "";
+      const val = v || api.apiBase;
       setUrl(val);
       setSaved(val);
     }).finally(() => setLoading(false));
@@ -52,13 +56,18 @@ function ServerSection() {
     const target = url.trim().replace(/\/$/, "") || saved;
     if (!target) { Alert.alert("Enter a server URL first"); return; }
     setTesting(true);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${target}/`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`${target}/`, { signal: controller.signal });
+      clearTimeout(timer);
       const data = await res.json();
       Alert.alert("Connected ✓", `${target}\n\nResponse: ${JSON.stringify(data).slice(0, 120)}`);
     } catch (e: any) {
+      clearTimeout(timer);
       Alert.alert("Connection failed", `${target}\n\n${e.message}`);
     } finally {
+      clearTimeout(timer);
       setTesting(false);
     }
   }

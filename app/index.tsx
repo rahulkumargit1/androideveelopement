@@ -10,6 +10,7 @@ import {
   Modal,
   FlatList,
   Pressable,
+  SafeAreaView,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
@@ -139,6 +140,7 @@ export default function ScanScreen() {
   }
 
   return (
+    <SafeAreaView style={s.safeArea}>
     <ScrollView
       style={s.page}
       contentContainerStyle={s.pageContent}
@@ -309,12 +311,14 @@ export default function ScanScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  safeArea:    { flex: 1, backgroundColor: T.navy },
   page:        { flex: 1, backgroundColor: T.bg },
-  pageContent: { paddingBottom: 40 },
+  pageContent: { paddingBottom: 48 },
 
   /* Hero */
   hero: {

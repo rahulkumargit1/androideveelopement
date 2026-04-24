@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { api, ScanResult } from "../src/api/client";
@@ -104,6 +105,7 @@ export default function HistoryScreen() {
   }
 
   return (
+    <SafeAreaView style={s.safeArea}>
     <ScrollView
       style={s.page}
       contentContainerStyle={s.pageContent}
@@ -186,12 +188,14 @@ export default function HistoryScreen() {
         </View>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  safeArea:    { flex: 1, backgroundColor: T.navy },
   page:        { flex: 1, backgroundColor: T.bg },
-  pageContent: { paddingBottom: 40 },
+  pageContent: { paddingBottom: 48 },
 
   /* Hero */
   hero: {
@@ -297,5 +301,5 @@ const s = StyleSheet.create({
   },
 
   /* List */
-  list: { paddingHorizontal: 16, gap: 12 },
+  list: { paddingHorizontal: 16, gap: 12, paddingBottom: 8 },
 });
