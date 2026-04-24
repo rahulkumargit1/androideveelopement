@@ -87,13 +87,15 @@ export default function ResultCard({ r }: { r: ScanResult }) {
     r.verdict === "authentic" || r.verdict === "counterfeit" ? r.verdict : "suspicious";
   const meta = VERDICT_META[verdictKey];
 
-  const breakdown   = (r.breakdown || {}) as Record<string, any>;
-  const subscores   = (breakdown.subscores || {}) as Record<string, number>;
-  const comparison  = (breakdown.comparison_of_techniques || {}) as Record<string, number>;
-  const topCur      = (breakdown.top_currencies || []) as [string, number][];
-  const topDen      = (breakdown.top_denominations || []) as [string, string, number][];
-  const lab         = (breakdown.lab || {}) as { L?: number; a?: number; b?: number; chroma?: number };
-  const model       = breakdown.model ?? "heuristic";
+  const breakdown   = (r.breakdown && typeof r.breakdown === "object" ? r.breakdown : {}) as Record<string, any>;
+  const subscores   = (breakdown.subscores && typeof breakdown.subscores === "object" ? breakdown.subscores : {}) as Record<string, number>;
+  const comparison  = (breakdown.comparison_of_techniques && typeof breakdown.comparison_of_techniques === "object" ? breakdown.comparison_of_techniques : {}) as Record<string, number>;
+  const topCurRaw   = Array.isArray(breakdown.top_currencies) ? breakdown.top_currencies : [];
+  const topDenRaw   = Array.isArray(breakdown.top_denominations) ? breakdown.top_denominations : [];
+  const topCur      = topCurRaw.filter((t: any) => Array.isArray(t) && t.length >= 2 && typeof t[0] === "string") as [string, number][];
+  const topDen      = topDenRaw.filter((t: any) => Array.isArray(t) && t.length >= 3 && typeof t[0] === "string" && typeof t[1] === "string") as [string, string, number][];
+  const lab         = (breakdown.lab && typeof breakdown.lab === "object" ? breakdown.lab : {}) as { L?: number; a?: number; b?: number; chroma?: number };
+  const model       = typeof breakdown.model === "string" ? breakdown.model : "heuristic";
 
   const subscopeEntries = Object.entries(subscores);
 

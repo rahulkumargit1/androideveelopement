@@ -9,10 +9,13 @@ const DEFAULT_API = (Constants.expoConfig?.extra as any)?.apiUrl || "http://10.0
 
 let _baseUrl: string = DEFAULT_API;
 
-// Load saved URL at startup
-SecureStore.getItemAsync(API_URL_KEY).then((v) => {
-  if (v) _baseUrl = v;
-}).catch(() => {});
+// Load saved URL at startup — queue early requests until resolved
+const _urlReady: Promise<void> = SecureStore.getItemAsync(API_URL_KEY)
+  .then((v) => { if (v) _baseUrl = v; })
+  .catch(() => {});
+
+const DEFAULT_TIMEOUT_MS = 15000;
+const SCAN_TIMEOUT_MS = 45000; // scans take longer (ML inference)
 
 export type Verdict = "authentic" | "suspicious" | "counterfeit";
 
@@ -42,7 +45,8 @@ async function getToken() { try { return await SecureStore.getItemAsync(TOKEN_KE
 async function setToken(t: string) { try { await SecureStore.setItemAsync(TOKEN_KEY, t); } catch {} }
 async function clearToken() { try { await SecureStore.deleteItemAsync(TOKEN_KEY); } catch {} }
 
-async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function req<T>(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+  await _urlReady;
   const base = _baseUrl;
   const t = await getToken();
   const headers: Record<string, string> = { ...(init.headers as any) };
@@ -50,19 +54,34 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !(init.body instanceof FormData)) {
     headers["Content-Type"] = headers["Content-Type"] || "application/json";
   }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await fetch(`${base}${path}`, { ...init, headers });
+    res = await fetch(`${base}${path}`, { ...init, headers, signal: controller.signal });
   } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s at ${base}`);
+    }
     throw new Error(`Cannot reach server at ${base} — check your Server URL in Settings.`);
+  } finally {
+    clearTimeout(timer);
   }
   if (!res.ok) {
     let detail = res.statusText;
-    try { detail = (await res.json()).detail || detail; } catch {}
+    try {
+      const text = await res.text();
+      try { detail = JSON.parse(text).detail || detail; } catch { /* HTML/non-JSON response */ }
+    } catch {}
     throw new Error(`${res.status} ${detail}`);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Invalid JSON response from ${base}${path}`);
+  }
 }
 
 export const api = {
@@ -82,18 +101,34 @@ export const api = {
   },
 
   login: async (email: string, password: string) => {
+    await _urlReady;
     const form = new URLSearchParams();
     form.set("username", email);
     form.set("password", password);
-    const res = await fetch(`${_baseUrl}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString(),
-    });
-    if (!res.ok) throw new Error(`Login failed (${res.status})`);
-    const data = await res.json();
-    await setToken(data.access_token);
-    return data;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${_baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let detail = res.statusText;
+        try { detail = JSON.parse(text).detail || detail; } catch {}
+        throw new Error(`Login failed: ${res.status} ${detail}`);
+      }
+      const data = await res.json();
+      await setToken(data.access_token);
+      return data;
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw new Error(`Login timed out at ${_baseUrl}`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   },
 
   logout: clearToken,
@@ -103,7 +138,7 @@ export const api = {
     const fd = new FormData();
     fd.append("image", { uri, name: `note-${Date.now()}.jpg`, type: "image/jpeg" } as any);
     if (hintCurrency) fd.append("hint_currency", hintCurrency);
-    return req<ScanResult>(`/api/scan`, { method: "POST", body: fd });
+    return req<ScanResult>(`/api/scan`, { method: "POST", body: fd }, SCAN_TIMEOUT_MS);
   },
 
   history: (limit = 25) => req<ScanResult[]>(`/api/scan/history?limit=${limit}`),
