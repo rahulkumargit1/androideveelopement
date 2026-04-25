@@ -4,9 +4,9 @@ import * as SecureStore from "expo-secure-store";
 const API_URL_KEY = "vc_api_url";
 const TOKEN_KEY = "vc_token";
 
-// Default backend URL — points to the EC2 production server.
+// Default backend URL — points to the EC2 production server (nginx port 80).
 // Override via Settings → Server URL (stored in SecureStore).
-const DEFAULT_API = (Constants.expoConfig?.extra as any)?.apiUrl || "http://54.162.220.67:8001";
+const DEFAULT_API = (Constants.expoConfig?.extra as any)?.apiUrl || "http://54.162.220.67";
 
 let _baseUrl: string = DEFAULT_API;
 
