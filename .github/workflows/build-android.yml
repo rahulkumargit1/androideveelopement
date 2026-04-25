@@ -103,23 +103,36 @@ jobs:
         with:
           name: VeriCash-APK
           path: output/VeriCash.apk
-          retention-days: 30
+          retention-days: 90
 
-      - name: Create GitHub Release on tag
-        if: startsWith(github.ref, 'refs/tags/')
+      # ── Always publish/update the "latest" release on every push to main ────
+      # Permanent download URL (never changes):
+      #   https://github.com/rahulkumargit1/androideveelopement/releases/latest/download/VeriCash.apk
+      - name: Publish permanent latest release
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest
+          name: VeriCash — Latest Build
+          prerelease: false
+          make_latest: true
           files: output/VeriCash.apk
-          name: VeriCash ${{ github.ref_name }}
           body: |
-            ## VeriCash Android App
+            ## VeriCash Android App — Latest Build
 
-            Download **VeriCash.apk** from Assets below.
+            **Permanent download link (always up to date):**
+            👉 [Download VeriCash.apk](https://github.com/rahulkumargit1/androideveelopement/releases/latest/download/VeriCash.apk)
+
+            Built from commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+            Date: ${{ github.event.head_commit.timestamp }}
 
             ### Install steps
             1. Download the APK to your Android phone
             2. Enable **Install unknown apps** in Android settings
             3. Open the APK and install
             4. Open VeriCash → Settings → enter your server URL
+               - AWS backend: `http://<your-ec2-ip>:8001`
                - Local WiFi: `http://192.168.x.x:8001`
-               - Cloud (AWS/ngrok): `https://your-server.com`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
