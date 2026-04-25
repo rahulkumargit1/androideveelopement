@@ -24,7 +24,8 @@
     },
     "android": {
       "package": "com.vericash.app",
-      "versionCode": 2,
+      "versionCode": 3,
+      "usesCleartextTraffic": true,
       "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -43,7 +44,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "https://vericash-inspector.loca.lt",
+      "apiUrl": "http://54.162.220.67",
       "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
     }
   }
