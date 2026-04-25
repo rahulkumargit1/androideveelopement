@@ -1,0 +1,22 @@
+{
+  "model": "eur_mobilenet",
+  "currency": "EUR",
+  "img_size": 224,
+  "n_classes": 12,
+  "source": "org_data YOLO converted — OCR + color analysis labelling",
+  "note": "12 classes = 4 denominations x front/back/rotated variants (dataset covers EUR 5-50 only)",
+  "classes": {
+    "0": "50",
+    "1": "20",
+    "2": "10",
+    "3": "5",
+    "4": "50",
+    "5": "20",
+    "6": "5",
+    "7": "20",
+    "8": "10",
+    "9": "5",
+    "10": "5",
+    "11": "5"
+  }
+}

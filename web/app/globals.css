@@ -1,0 +1,348 @@
+/* VeriCash — Government / USWDS-inspired theme.
+   Inspired by whitehouse.gov + the U.S. Web Design System (USWDS) v3:
+   navy + crimson + white, official-feeling typography (Source Serif 4
+   for headings, Public Sans for body), formal rules, restrained motion.
+
+   This file replaces the earlier teal "design hand-off" theme; the
+   semantic verdict colors (authentic / suspicious / counterfeit) carry
+   over so existing components keep working. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==================================================================
+   TOKENS
+   ================================================================== */
+:root {
+  /* --- Primary (USWDS-style "blue-warm" range) --- */
+  --gov-navy:        #1a4480;   /* primary-dark  — official navy */
+  --gov-navy-darker: #162e51;   /* primary-darker — used on hero strips */
+  --gov-navy-darkest:#0b1b3b;
+  --gov-blue:        #2378c3;   /* primary       — accent links */
+  --gov-blue-light:  #d9e8f6;   /* primary-lighter */
+  --gov-blue-50:     #eff6fb;
+
+  /* --- Secondary (USWDS-style "red-warm" range) --- */
+  --gov-red:         #b50909;   /* secondary-darker */
+  --gov-red-mid:     #d83933;   /* secondary */
+  --gov-red-light:   #f8dfe2;
+
+  /* --- Accent gold (used for the official strip / focus states) --- */
+  --gov-gold:        #ffbc78;
+  --gov-gold-dark:   #c2850c;
+
+  /* --- Sand neutrals (USWDS gray-warm) --- */
+  --sand-5:   #f9f8f6;
+  --sand-10:  #f0efee;
+  --sand-20:  #dcdee0;
+  --sand-30:  #c9c9c9;
+  --sand-40:  #adadad;
+  --sand-50:  #8d8d8d;
+  --sand-60:  #71767a;
+  --sand-70:  #565c65;
+  --sand-80:  #3d4551;
+  --sand-90:  #1b1b1b;
+
+  /* --- Semantic verdict --- */
+  --authentic:#2e8540; --authentic-bg:#ecf3ec; --authentic-fg:#19381f; --authentic-ring:#94bfa2;
+  --suspicious:#e5a000; --suspicious-bg:#faf3d1; --suspicious-fg:#5c410a; --suspicious-ring:#ddaa01;
+  --counterfeit:#b50909; --counterfeit-bg:#f4e3db; --counterfeit-fg:#5b1212; --counterfeit-ring:#d83933;
+
+  /* --- Surfaces (light theme defaults) --- */
+  --bg-page:    #ffffff;
+  --bg-canvas:  #ffffff;
+  --bg-raised:  #ffffff;
+  --bg-sunken:  var(--sand-5);
+  --bg-strip:   var(--gov-navy-darker);   /* the official top strip */
+  --bg-overlay: rgba(11, 27, 59, 0.55);
+  --border:     var(--sand-20);
+  --border-strong: var(--sand-30);
+  --divider:    var(--sand-10);
+
+  --fg-primary:   var(--sand-90);
+  --fg-secondary: var(--sand-70);
+  --fg-tertiary:  var(--sand-60);
+  --fg-disabled:  var(--sand-40);
+  --fg-link:      var(--gov-blue);
+  --fg-link-visited: #54278f;
+  --fg-brand:     var(--gov-navy);
+  --fg-inverse:   #ffffff;
+
+  --accent-bg: var(--gov-blue-50);
+  --accent-fg: var(--gov-navy);
+
+  /* --- Radii (formal: tighter than the previous theme) --- */
+  --r-sm:2px; --r-md:3px; --r-lg:4px; --r-xl:6px; --r-2xl:8px; --r-full:9999px;
+
+  /* --- Shadows (subdued, document-like) --- */
+  --sh-xs:  0 1px 0 rgba(0,0,0,0.04);
+  --sh-sm:  0 1px 2px rgba(0,0,0,0.06);
+  --sh-md:  0 2px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --sh-lg:  0 4px 12px rgba(11,27,59,0.10), 0 2px 4px rgba(11,27,59,0.06);
+  --sh-xl:  0 12px 32px rgba(11,27,59,0.16);
+  --sh-focus: 0 0 0 3px var(--gov-gold);
+
+  /* --- Motion --- */
+  --dur-quick:120ms; --dur-base:200ms; --dur-slow:320ms;
+  --ease-std: cubic-bezier(0.2, 0, 0, 1);
+
+  /* --- Type --- */
+  --font-sans:    var(--font-public-sans), 'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif:   var(--font-source-serif), 'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-page:   #0b1220;
+  --bg-canvas: #111a2e;
+  --bg-raised: #15203a;
+  --bg-sunken: #0e1626;
+  --bg-strip:  #0b1b3b;
+  --bg-overlay: rgba(0,0,0,0.66);
+  --border:    #243657;
+  --border-strong: #324a76;
+  --divider:   #1c2a47;
+
+  --fg-primary:   #f1f4fa;
+  --fg-secondary: #c5cee0;
+  --fg-tertiary:  #8a96b2;
+  --fg-disabled:  #4d5b78;
+  --fg-link:      #8fc1ff;
+  --fg-brand:     #8fc1ff;
+  --fg-inverse:   #0b1220;
+
+  --accent-bg: rgba(35, 120, 195, 0.15);
+  --accent-fg: #d9e8f6;
+
+  --sh-xs:  0 1px 0 rgba(0,0,0,0.4);
+  --sh-sm:  0 1px 2px rgba(0,0,0,0.5);
+  --sh-md:  0 2px 6px rgba(0,0,0,0.55);
+  --sh-lg:  0 8px 18px rgba(0,0,0,0.6);
+  --sh-xl:  0 14px 36px rgba(0,0,0,0.7);
+  --sh-focus: 0 0 0 3px var(--gov-gold);
+}
+
+/* ==================================================================
+   BASE
+   ================================================================== */
+@layer base {
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-page);
+    color: var(--fg-primary);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-serif);
+    color: var(--fg-primary);
+    letter-spacing: -0.005em;
+    font-weight: 700;
+  }
+
+  a { color: var(--fg-link); text-decoration: underline; text-underline-offset: 3px; }
+  a:hover { color: var(--gov-navy); }
+
+  :focus { outline: none; }
+  :focus-visible { box-shadow: var(--sh-focus); border-radius: 2px; }
+
+  ::selection { background: var(--gov-gold); color: var(--sand-90); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 0; border: 2px solid var(--bg-page); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+/* ==================================================================
+   TYPOGRAPHY UTILITIES
+   ================================================================== */
+@layer utilities {
+  .t-serif   { font-family: var(--font-serif); }
+  .t-sans    { font-family: var(--font-sans); }
+  .t-mono    { font-family: var(--font-mono); }
+  .t-display { font-family: var(--font-serif); font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+  .t-eyebrow { font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-secondary); }
+}
+
+/* ==================================================================
+   COMPONENT PRIMITIVES
+   ================================================================== */
+@layer components {
+  /* --- Top "official" strip --- */
+  .gov-strip {
+    background: var(--bg-strip);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .gov-strip a { color: #fff; text-decoration: none; }
+  .gov-strip a:hover { text-decoration: underline; }
+
+  /* --- Button --- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 40px; padding: 0 18px; border-radius: var(--r-md);
+    font-family: var(--font-sans); font-size: 15px; font-weight: 600;
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap; user-select: none;
+    transition: background var(--dur-quick) var(--ease-std), border-color var(--dur-quick) var(--ease-std), box-shadow var(--dur-quick) var(--ease-std);
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled], .btn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
+  .btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+  .btn-lg { height: 48px; padding: 0 22px; font-size: 16px; }
+
+  .btn-primary   { background: var(--gov-navy);  color: #fff; }
+  .btn-primary:hover  { background: var(--gov-navy-darker); }
+  .btn-primary:focus-visible { box-shadow: var(--sh-focus); }
+
+  .btn-secondary { background: #fff; color: var(--gov-navy); border-color: var(--gov-navy); }
+  .btn-secondary:hover { background: var(--gov-blue-50); }
+
+  .btn-ghost { background: transparent; color: var(--fg-secondary); border-color: transparent; }
+  .btn-ghost:hover { background: var(--bg-sunken); color: var(--fg-primary); }
+
+  .btn-danger  { background: var(--gov-red); color: #fff; }
+  .btn-danger:hover { background: #800; }
+
+  .btn-icon  { width: 40px; padding: 0; }
+  .btn-icon.btn-sm { width: 32px; }
+
+  /* --- Inputs --- */
+  .input, .textarea, .select {
+    display: block; width: 100%; height: 40px; padding: 0 12px;
+    background: var(--bg-canvas); color: var(--fg-primary);
+    border: 1px solid var(--border-strong); border-radius: var(--r-md);
+    font-family: var(--font-sans); font-size: 15px; line-height: 1.4;
+    transition: border-color var(--dur-quick) var(--ease-std), box-shadow var(--dur-quick) var(--ease-std);
+  }
+  .input::placeholder { color: var(--fg-tertiary); }
+  .input:hover, .textarea:hover, .select:hover { border-color: var(--gov-navy); }
+  .input:focus, .textarea:focus, .select:focus {
+    border-color: var(--gov-navy); box-shadow: var(--sh-focus); outline: none;
+  }
+  .textarea { height: auto; padding: 10px 12px; min-height: 90px; resize: vertical; }
+  .input-error { border-color: var(--counterfeit); box-shadow: 0 0 0 3px var(--counterfeit-ring); }
+
+  .label { display: block; font-size: 14px; font-weight: 600; color: var(--fg-primary); margin-bottom: 6px; }
+  .help  { font-size: 13px; color: var(--fg-secondary); margin-top: 6px; }
+  .help.error { color: var(--counterfeit); }
+
+  /* --- Chip / pill --- */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px;
+    border-radius: var(--r-full);
+    font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+    background: var(--bg-sunken); color: var(--fg-secondary);
+    border: 1px solid var(--border-strong);
+  }
+  .chip-authentic   { background: var(--authentic-bg);   color: var(--authentic-fg);   border-color: var(--authentic); }
+  .chip-suspicious  { background: var(--suspicious-bg);  color: var(--suspicious-fg);  border-color: var(--suspicious); }
+  .chip-counterfeit { background: var(--counterfeit-bg); color: var(--counterfeit-fg); border-color: var(--counterfeit); }
+  .chip-brand       { background: var(--accent-bg);      color: var(--accent-fg);      border-color: var(--gov-navy); }
+  .chip-gold        { background: #fff7e6; color: #5c410a; border-color: var(--gov-gold-dark); }
+
+  /* --- Card --- */
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--r-lg); box-shadow: var(--sh-xs);
+    padding: 24px;
+  }
+  .card-flat { box-shadow: none; }
+
+  /* --- Doc-style "rule" used to separate official sections --- */
+  .gov-rule {
+    height: 4px;
+    background: linear-gradient(to right, var(--gov-navy) 0 33%, var(--gov-red) 33% 66%, var(--gov-gold) 66% 100%);
+    border: 0;
+    margin: 0;
+  }
+  .divider { height: 1px; background: var(--divider); border: 0; margin: 0; }
+
+  /* --- Switch --- */
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .track { position: absolute; inset: 0; border-radius: 9999px; background: var(--border-strong); transition: background var(--dur-quick); }
+  .switch .thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 9999px; box-shadow: var(--sh-sm); transition: transform var(--dur-base) var(--ease-std); }
+  .switch input:checked + .track { background: var(--gov-navy); }
+  .switch input:checked + .track .thumb { transform: translateX(20px); }
+
+  /* --- Progress --- */
+  .progress { height: 8px; background: var(--bg-sunken); border-radius: 9999px; overflow: hidden; border: 1px solid var(--border); }
+  .progress-bar { height: 100%; background: var(--gov-navy); border-radius: 9999px; transition: width var(--dur-base) var(--ease-std); }
+  .progress-bar.success { background: var(--authentic); }
+  .progress-bar.warn    { background: var(--suspicious); }
+  .progress-bar.danger  { background: var(--counterfeit); }
+
+  /* --- Hero / page header --- */
+  .gov-hero {
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border);
+    padding: 36px 0 28px;
+  }
+  .gov-hero h1 { font-size: 36px; line-height: 1.15; margin: 0 0 6px; }
+  .gov-hero p  { color: var(--fg-secondary); max-width: 64ch; margin: 0; }
+
+  /* --- Banner-style alert (admin gate, etc.) --- */
+  .alert {
+    display: flex; gap: 12px; padding: 16px 18px;
+    border-left: 6px solid var(--fg-brand);
+    background: var(--accent-bg);
+    color: var(--fg-primary);
+    border-radius: var(--r-md);
+  }
+  .alert.warn   { border-left-color: var(--suspicious); background: var(--suspicious-bg); color: var(--suspicious-fg); }
+  .alert.danger { border-left-color: var(--counterfeit); background: var(--counterfeit-bg); color: var(--counterfeit-fg); }
+  .alert.success{ border-left-color: var(--authentic);   background: var(--authentic-bg);   color: var(--authentic-fg); }
+  [data-theme="dark"] .alert.warn   { background: rgba(229,160,0,0.12); color: var(--fg-primary); }
+  [data-theme="dark"] .alert.danger { background: rgba(181,9,9,0.15);   color: var(--fg-primary); }
+  [data-theme="dark"] .alert.success{ background: rgba(46,133,64,0.15); color: var(--fg-primary); }
+
+  /* --- Data table --- */
+  .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .table th, .table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .table th {
+    font-family: var(--font-sans); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--fg-secondary); background: var(--bg-sunken);
+  }
+  .table tbody tr:hover { background: var(--accent-bg); }
+}
+
+/* ==================================================================
+   EFFECTS / SURFACE UTILITIES
+   ================================================================== */
+@layer utilities {
+  @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg-sunken) 0px, var(--border) 40px, var(--bg-sunken) 80px);
+    background-size: 800px 100%; animation: shimmer 1.4s linear infinite;
+    border-radius: var(--r-md);
+  }
+  .gov-gradient { background: linear-gradient(180deg, var(--gov-navy-darker) 0%, var(--gov-navy) 100%); }
+
+  .bg-page    { background-color: var(--bg-page); }
+  .bg-canvas  { background-color: var(--bg-canvas); }
+  .bg-raised  { background-color: var(--bg-raised); }
+  .bg-sunken  { background-color: var(--bg-sunken); }
+  .bg-strip   { background-color: var(--bg-strip); }
+  .text-primary   { color: var(--fg-primary); }
+  .text-secondary { color: var(--fg-secondary); }
+  .text-tertiary  { color: var(--fg-tertiary); }
+  .text-link      { color: var(--fg-link); }
+  .text-brand     { color: var(--fg-brand); }
+  .border-token   { border-color: var(--border); }
+  .border-strong  { border-color: var(--border-strong); }
+}

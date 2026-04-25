@@ -1,0 +1,15 @@
+{
+  "model": "usd_mobilenet",
+  "currency": "USD",
+  "img_size": 96,
+  "n_classes": 6,
+  "val_accuracy": 0.9783,
+  "classes": {
+    "0": "1",
+    "1": "10",
+    "2": "100",
+    "3": "2",
+    "4": "5",
+    "5": "50"
+  }
+}

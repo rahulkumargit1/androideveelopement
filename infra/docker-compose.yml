@@ -1,0 +1,42 @@
+version: "3.9"
+
+# Single-server deployment: backend serves API for both web and APK clients.
+services:
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: vericash-api:latest
+    container_name: vericash-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../backend/.env
+    volumes:
+      - vericash-data:/app/data
+      - vericash-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: node:20-alpine
+    container_name: vericash-web
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run build && npm run start -- -p 3000"
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../web:/app
+
+volumes:
+  vericash-data:
+  vericash-uploads:
