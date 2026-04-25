@@ -4,8 +4,9 @@ import * as SecureStore from "expo-secure-store";
 const API_URL_KEY = "vc_api_url";
 const TOKEN_KEY = "vc_token";
 
-// Default fallback — works on Android emulator. Real devices use Settings → Server URL.
-const DEFAULT_API = (Constants.expoConfig?.extra as any)?.apiUrl || "http://10.0.2.2:8001";
+// Default backend URL — points to the EC2 production server.
+// Override via Settings → Server URL (stored in SecureStore).
+const DEFAULT_API = (Constants.expoConfig?.extra as any)?.apiUrl || "http://54.162.220.67:8001";
 
 let _baseUrl: string = DEFAULT_API;
 
@@ -15,7 +16,7 @@ const _urlReady: Promise<void> = SecureStore.getItemAsync(API_URL_KEY)
   .catch(() => {});
 
 const DEFAULT_TIMEOUT_MS = 15000;
-const SCAN_TIMEOUT_MS = 120000; // 2 min — ML inference + localtunnel can be slow
+const SCAN_TIMEOUT_MS = 120000; // 2 min — ML inference can be slow on first run
 
 export type Verdict = "authentic" | "suspicious" | "counterfeit";
 
