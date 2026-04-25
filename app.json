@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.vericash.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "usesCleartextTraffic": true,
       "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
       "adaptiveIcon": {
@@ -44,7 +44,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://54.162.220.67",
+      "apiUrl": "https://54.162.220.67.nip.io",
       "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
     }
   }
