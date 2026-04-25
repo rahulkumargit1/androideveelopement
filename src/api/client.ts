@@ -10,9 +10,23 @@ const DEFAULT_API = (Constants.expoConfig?.extra as any)?.apiUrl || "http://54.1
 
 let _baseUrl: string = DEFAULT_API;
 
-// Load saved URL at startup — queue early requests until resolved
+// URLs that are no longer valid — auto-cleared on startup so users don't
+// get stuck after a deployment migration (e.g. localtunnel → EC2).
+const STALE_URL_PATTERNS = ["loca.lt", "ngrok.io", "localhost", "10.0.2.2"];
+
+function _isStale(url: string): boolean {
+  return STALE_URL_PATTERNS.some((p) => url.includes(p));
+}
+
+// Load saved URL at startup — clear stale/dev URLs automatically
 const _urlReady: Promise<void> = SecureStore.getItemAsync(API_URL_KEY)
-  .then((v) => { if (v) _baseUrl = v; })
+  .then((v) => {
+    if (v && _isStale(v)) {
+      // Stale URL (localtunnel / ngrok / emulator) — reset to production default
+      return SecureStore.setItemAsync(API_URL_KEY, DEFAULT_API);
+    }
+    if (v) _baseUrl = v;
+  })
   .catch(() => {});
 
 const DEFAULT_TIMEOUT_MS = 15000;
