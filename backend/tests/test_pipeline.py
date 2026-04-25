@@ -48,34 +48,50 @@ def test_pipeline_reports_seven_techniques():
 
 
 def test_subscores_include_all_seven():
+    """All 8 pipeline sub-scores must be present and in [0, 1]."""
     res = analyze(_fake_note())
     subscores = res["breakdown"]["subscores"]
+    # These are the actual keys returned by pipeline.py
     expected = {
-        "exposure", "histogram_match", "noise_quality",
-        "sharpness", "microprint_fft", "thread_continuity",
-        "color_chroma", "ml_confidence",
+        "profile_match",        # Lab colour distance to genuine note profile (Technique 7)
+        "color_consistency",    # Chroma within denomination's expected range (Technique 7)
+        "texture_detail",       # Laplacian variance in genuine-print band (Technique 3)
+        "microprint_presence",  # FFT high-freq micro-print energy (Technique 4)
+        "thread_detection",     # Security thread morphology (Technique 6)
+        "noise_consistency",    # Genuine-paper noise sigma + moire check (Technique 5)
+        "histogram_profile",    # Multi-modal histogram shape (Technique 2)
+        "exposure_valid",       # Quality gate: exposure (Technique 1)
     }
     for key in expected:
         assert key in subscores, f"Missing subscore: {key}"
         assert 0.0 <= subscores[key] <= 1.0, f"Subscore {key} out of [0,1]: {subscores[key]}"
+    # ml_confidence lives in breakdown (not subscores) for reference
+    assert "ml_confidence" in res["breakdown"]
 
 
 def test_noise_quality_score():
-    """Noise module: clean synthetic image should score near 1.0."""
-    arr = np.full((300, 600, 3), 128, dtype=np.uint8)  # flat grey — minimal noise
+    """Noise module: image with genuine paper-grain sigma (~4) should score > 0.5."""
+    rng = np.random.default_rng(42)
+    # Genuine banknote paper has noise sigma 2-7; use sigma≈4
+    base = np.full((300, 600, 3), 128, dtype=np.float32)
+    noise_arr = rng.normal(0, 4, base.shape).astype(np.float32)
+    arr = np.clip(base + noise_arr, 0, 255).astype(np.uint8)
     score = noise.noise_quality_score(arr)
     assert 0.0 <= score <= 1.0, f"Score out of range: {score}"
-    # A nearly-clean image should score > 0.5
-    assert score > 0.5, f"Expected score > 0.5 for clean image, got {score}"
+    # Paper-grain image (sigma 2-7) should score high
+    assert score > 0.5, f"Expected score > 0.5 for paper-grain image, got {score}"
 
 
 def test_noise_quality_noisy_image():
-    """Noise module: heavy-noise image should score lower than clean image."""
+    """Noise module: heavy-noise image should score lower than paper-grain image."""
     rng = np.random.default_rng(0)
-    # Very noisy image
+    # Very noisy image (sigma >> 7, well outside genuine range)
     noisy = rng.integers(0, 256, (300, 600, 3), dtype=np.uint8).astype(np.uint8)
-    clean = np.full((300, 600, 3), 128, dtype=np.uint8)
-    assert noise.noise_quality_score(noisy) < noise.noise_quality_score(clean)
+    # Paper-grain image (sigma ≈ 4)
+    base = np.full((300, 600, 3), 128, dtype=np.float32)
+    grain = rng.normal(0, 4, base.shape).astype(np.float32)
+    paper = np.clip(base + grain, 0, 255).astype(np.uint8)
+    assert noise.noise_quality_score(noisy) < noise.noise_quality_score(paper)
 
 
 def test_pipeline_with_currency_hint():

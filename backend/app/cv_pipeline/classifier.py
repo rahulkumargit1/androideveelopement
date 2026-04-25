@@ -2,13 +2,13 @@
 
 Priority chain:
   1. BankNote-Net (96.8% currency / 92.4% denomination) — 17 currencies
-  2. MobileNetV2-INR  — 78.6% accuracy, INR denominations only
-  3. MobileNetV2-EUR  — 90.9% accuracy, EUR classes from org_data
-  4. Heuristic Lab fingerprints (colorspace.classify) — always available
+  2. TFLite MobileNetV2-USD — 97.8% accuracy, USD denominations
+  3. TFLite MobileNetV2-EUR — EUR classes from org_data
+  4. TFLite MobileNetV2-INR — INR denominations
+  5. Heuristic Lab fingerprints (colorspace.classify) — always available
 
-All tuple formats match colorspace.py:
-  top_currencies    : [(currency_code, confidence), ...]
-  top_denominations : [(currency_code, denomination, confidence), ...]
+TFLite models (.tflite) are preferred over .h5 — they use a tiny runtime
+(ai-edge-litert ~30 MB vs tensorflow-cpu ~600 MB) and run 2-3× faster.
 """
 from __future__ import annotations
 
@@ -21,30 +21,160 @@ import numpy as np
 from . import colorspace
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
-IMG_SIZE  = 224
+IMG_SIZE  = 224   # default; overridden per-model by label map img_size
 
-INR_H5_PATH = os.path.join(MODEL_DIR, "inr_mobilenet.h5")
+# ── Model paths ───────────────────────────────────────────────────────────────
+INR_TFLITE  = os.path.join(MODEL_DIR, "inr_mobilenet.tflite")
 INR_LM_PATH = os.path.join(MODEL_DIR, "inr_label_map.json")
-USD_H5_PATH = os.path.join(MODEL_DIR, "usd_mobilenet.h5")
+INR_H5_PATH = os.path.join(MODEL_DIR, "inr_mobilenet.h5")
+
+USD_TFLITE  = os.path.join(MODEL_DIR, "usd_mobilenet.tflite")
 USD_LM_PATH = os.path.join(MODEL_DIR, "usd_label_map.json")
-EUR_H5_PATH = os.path.join(MODEL_DIR, "eur_mobilenet.h5")
+USD_H5_PATH = os.path.join(MODEL_DIR, "usd_mobilenet.h5")
+
+EUR_TFLITE  = os.path.join(MODEL_DIR, "eur_mobilenet.tflite")
 EUR_LM_PATH = os.path.join(MODEL_DIR, "eur_label_map.json")
+EUR_H5_PATH = os.path.join(MODEL_DIR, "eur_mobilenet.h5")
 
 BN_ENCODER_PATH = os.path.join(MODEL_DIR, "banknote_net_rebuilt.keras")
 BN_CUR_CLF_PATH = os.path.join(MODEL_DIR, "bn_currency_clf.joblib")
 BN_DEN_CLF_PATH = os.path.join(MODEL_DIR, "bn_denomination_clf.joblib")
 BN_SUMMARY_PATH = os.path.join(MODEL_DIR, "bn_summary.json")
 
-_inr_model  = None
+# ── Cached model state ────────────────────────────────────────────────────────
+_inr_interp  = None   # TFLite interpreter
 _inr_labels: dict | None = None
-_usd_model  = None
+_usd_interp  = None
 _usd_labels: dict | None = None
-_eur_model  = None
+_eur_interp  = None
 _eur_labels: dict | None = None
 _bn_encoder = None
 _bn_cur_clf = None
 _bn_den_clf = None
 _bn_currencies: list[str] = []
+
+
+# ── TFLite runtime loader (tries ai_edge_litert, tflite_runtime, then full TF) ─
+def _get_tflite_interpreter():
+    """Return the TFLite Interpreter class, or None if no runtime is available."""
+    try:
+        from ai_edge_litert.interpreter import Interpreter
+        return Interpreter
+    except ImportError:
+        pass
+    try:
+        from tflite_runtime.interpreter import Interpreter
+        return Interpreter
+    except ImportError:
+        pass
+    try:
+        import tensorflow as tf
+        return tf.lite.Interpreter
+    except ImportError:
+        pass
+    return None
+
+
+def _load_tflite(tflite_path: str, h5_path: str, lm_path: str):
+    """Load a TFLite model + label map.  Returns (interpreter, labels) or (None, None)."""
+    if not os.path.exists(lm_path):
+        return None, None
+
+    with open(lm_path) as f:
+        labels = json.load(f)
+
+    # ── Try TFLite first ───────────────────────────────────────────────────────
+    Interp = _get_tflite_interpreter()
+    if Interp and os.path.exists(tflite_path):
+        try:
+            interp = Interp(model_path=tflite_path)
+            interp.allocate_tensors()
+            return interp, labels
+        except Exception as e:
+            print(f"[classifier] TFLite load failed ({tflite_path}): {e}")
+
+    # ── Fall back to .h5 via full TensorFlow ──────────────────────────────────
+    if os.path.exists(h5_path):
+        try:
+            import tensorflow as tf
+            model = tf.keras.models.load_model(h5_path)
+            return model, labels        # full Keras model — handled below
+        except Exception as e:
+            print(f"[classifier] H5 load failed ({h5_path}): {e}")
+
+    return None, None
+
+
+def _load_eur_tflite():
+    """EUR model needs a compat patch if loading .h5 (old TF kwargs)."""
+    if not os.path.exists(EUR_LM_PATH):
+        return None, None
+
+    with open(EUR_LM_PATH) as f:
+        labels = json.load(f)
+
+    Interp = _get_tflite_interpreter()
+    if Interp and os.path.exists(EUR_TFLITE):
+        try:
+            interp = Interp(model_path=EUR_TFLITE)
+            interp.allocate_tensors()
+            return interp, labels
+        except Exception as e:
+            print(f"[classifier] EUR TFLite load failed: {e}")
+
+    # Fall back to .h5 with compat patch
+    if os.path.exists(EUR_H5_PATH):
+        try:
+            import tensorflow as tf
+            from tensorflow.keras import layers as _kl
+            _STRIP = {"renorm", "renorm_clipping", "renorm_momentum",
+                      "quantization_config"}
+
+            def _make_compat(base_cls):
+                class _Compat(base_cls):
+                    def __init__(self, **kwargs):
+                        for k in _STRIP:
+                            kwargs.pop(k, None)
+                        super().__init__(**kwargs)
+                _Compat.__name__ = base_cls.__name__
+                return _Compat
+
+            custom_objs = {
+                cls.__name__: _make_compat(cls)
+                for cls in [_kl.BatchNormalization, _kl.Dense, _kl.Conv2D,
+                            _kl.DepthwiseConv2D, _kl.ReLU, _kl.Activation]
+            }
+            model = tf.keras.models.load_model(
+                EUR_H5_PATH, custom_objects=custom_objs, compile=False)
+            return model, labels
+        except Exception as e:
+            print(f"[classifier] EUR H5 load failed: {e}")
+
+    return None, None
+
+
+def _load_inr() -> bool:
+    global _inr_interp, _inr_labels
+    if _inr_interp is not None:
+        return True
+    _inr_interp, _inr_labels = _load_tflite(INR_TFLITE, INR_H5_PATH, INR_LM_PATH)
+    return _inr_interp is not None
+
+
+def _load_usd() -> bool:
+    global _usd_interp, _usd_labels
+    if _usd_interp is not None:
+        return True
+    _usd_interp, _usd_labels = _load_tflite(USD_TFLITE, USD_H5_PATH, USD_LM_PATH)
+    return _usd_interp is not None
+
+
+def _load_eur() -> bool:
+    global _eur_interp, _eur_labels
+    if _eur_interp is not None:
+        return True
+    _eur_interp, _eur_labels = _load_eur_tflite()
+    return _eur_interp is not None
 
 
 def _load_bn() -> bool:
@@ -76,13 +206,12 @@ def _bn_predict(img_bgr: np.ndarray, enabled_currencies: list[str] | None) -> di
         resized = cv2.resize(rgb, (IMG_SIZE, IMG_SIZE)).astype("float32") / 255.0
         emb     = _bn_encoder.predict(np.expand_dims(resized, 0), verbose=0)[0]
 
-        cur_probs = _bn_cur_clf.predict_proba([emb])[0]
+        cur_probs   = _bn_cur_clf.predict_proba([emb])[0]
         cur_classes = list(_bn_cur_clf.classes_)
         top_cur_idx = int(np.argmax(cur_probs))
         currency    = cur_classes[top_cur_idx]
         cur_conf    = float(cur_probs[top_cur_idx])
 
-        # Filter by enabled currencies if specified
         if enabled_currencies:
             allowed = set(enabled_currencies)
             valid = [(c, float(cur_probs[i])) for i, c in enumerate(cur_classes) if c in allowed]
@@ -95,7 +224,7 @@ def _bn_predict(img_bgr: np.ndarray, enabled_currencies: list[str] | None) -> di
             key=lambda x: -x[1],
         )[:5]
 
-        den_probs  = _bn_den_clf.predict_proba([emb])[0]
+        den_probs   = _bn_den_clf.predict_proba([emb])[0]
         den_classes = list(_bn_den_clf.classes_)
         top_den_idx = int(np.argmax(den_probs))
         denomination = str(den_classes[top_den_idx])
@@ -114,93 +243,34 @@ def _bn_predict(img_bgr: np.ndarray, enabled_currencies: list[str] | None) -> di
         return None
 
 
-def _load_inr() -> bool:
-    global _inr_model, _inr_labels
-    if _inr_model is not None:
-        return True
-    if not (os.path.exists(INR_H5_PATH) and os.path.exists(INR_LM_PATH)):
-        return False
-    try:
-        import tensorflow as tf
-        _inr_model = tf.keras.models.load_model(INR_H5_PATH)
-        with open(INR_LM_PATH) as f:
-            _inr_labels = json.load(f)
-        return True
-    except Exception:
-        return False
+def _mobilenet_predict(
+    img_bgr: np.ndarray,
+    model_or_interp,
+    labels: dict,
+    currency: str,
+):
+    """Run a MobileNetV2 (TFLite interpreter or Keras model) on img_bgr.
 
-
-def _load_usd() -> bool:
-    global _usd_model, _usd_labels
-    if _usd_model is not None:
-        return True
-    if not (os.path.exists(USD_H5_PATH) and os.path.exists(USD_LM_PATH)):
-        return False
-    try:
-        import tensorflow as tf
-        _usd_model = tf.keras.models.load_model(USD_H5_PATH)
-        with open(USD_LM_PATH) as f:
-            _usd_labels = json.load(f)
-        return True
-    except Exception:
-        return False
-
-
-def _load_eur() -> bool:
-    global _eur_model, _eur_labels
-    if _eur_model is not None:
-        return True
-    if not (os.path.exists(EUR_H5_PATH) and os.path.exists(EUR_LM_PATH)):
-        return False
-    try:
-        import tensorflow as tf
-        from tensorflow.keras import layers as _kl
-
-        # EUR model was saved with an older TF version that serialised extra
-        # kwargs (renorm, quantization_config, etc.) that newer TF no longer
-        # accepts.  Patch every affected layer class to silently drop unknown
-        # kwargs so the model can be loaded without retraining.
-        _STRIP = {"renorm", "renorm_clipping", "renorm_momentum",
-                  "quantization_config"}
-
-        def _make_compat(base_cls):
-            class _Compat(base_cls):
-                def __init__(self, **kwargs):
-                    for k in _STRIP:
-                        kwargs.pop(k, None)
-                    super().__init__(**kwargs)
-            _Compat.__name__ = base_cls.__name__
-            return _Compat
-
-        custom_objs = {
-            cls.__name__: _make_compat(cls)
-            for cls in [
-                _kl.BatchNormalization, _kl.Dense, _kl.Conv2D,
-                _kl.DepthwiseConv2D, _kl.ReLU, _kl.Activation,
-            ]
-        }
-
-        _eur_model = tf.keras.models.load_model(
-            EUR_H5_PATH,
-            custom_objects=custom_objs,
-            compile=False,
-        )
-        with open(EUR_LM_PATH) as f:
-            _eur_labels = json.load(f)
-        return True
-    except Exception as e:
-        print(f"[classifier] EUR model load failed: {e}")
-        return False
-
-
-def _mobilenet_predict(img_bgr: np.ndarray, model, labels: dict, currency: str):
-    """Run a loaded MobileNetV2 on img_bgr. Returns (denomination, confidence, top_denoms)."""
+    Returns (denomination, confidence, top_denoms).
+    """
     import cv2
-    # Use img_size stored in label map (USD=96, INR/EUR=224) — don't assume 224
-    sz = int(labels.get("img_size", IMG_SIZE))
-    rgb     = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    resized = cv2.resize(rgb, (sz, sz)).astype("float32") / 255.0
-    probs   = model.predict(np.expand_dims(resized, 0), verbose=0)[0]
+    sz  = int(labels.get("img_size", IMG_SIZE))
+    rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    arr = cv2.resize(rgb, (sz, sz)).astype("float32") / 255.0
+    inp = np.expand_dims(arr, 0)
+
+    # ── TFLite interpreter path ────────────────────────────────────────────────
+    if hasattr(model_or_interp, "get_input_details"):
+        interp = model_or_interp
+        in_det  = interp.get_input_details()
+        out_det = interp.get_output_details()
+        interp.set_tensor(in_det[0]["index"], inp)
+        interp.invoke()
+        probs = interp.get_tensor(out_det[0]["index"])[0]
+    else:
+        # Full Keras model (.h5 fallback)
+        probs = model_or_interp.predict(inp, verbose=0)[0]
+
     classes: dict = labels["classes"]
     top_idx = int(np.argmax(probs))
     denom   = classes.get(str(top_idx), "Unknown")
@@ -214,12 +284,16 @@ def _mobilenet_predict(img_bgr: np.ndarray, model, labels: dict, currency: str):
 
 
 def _model_name() -> str:
-    parts = ["Lab heuristic"]
-    if os.path.exists(INR_H5_PATH):
-        parts.insert(0, "MobileNetV2-INR")
-    if os.path.exists(USD_H5_PATH):
-        parts.insert(0, "MobileNetV2-USD")
+    parts = []
+    if os.path.exists(USD_TFLITE) or os.path.exists(USD_H5_PATH):
+        parts.append("TFLite-USD")
+    if os.path.exists(EUR_TFLITE) or os.path.exists(EUR_H5_PATH):
+        parts.append("TFLite-EUR")
+    if os.path.exists(INR_TFLITE) or os.path.exists(INR_H5_PATH):
+        parts.append("TFLite-INR")
+    parts.append("Lab heuristic")
     return " + ".join(parts)
+
 
 MODEL_NAME = _model_name()
 
@@ -242,26 +316,13 @@ def predict(
     denomination = r["denomination"]
     cur_conf     = r["currency_confidence"]
     den_conf     = r["denom_confidence"]
-    top_curs     = r["top_currencies"]    # [(currency, conf), ...]
-    top_dens     = r["top_denominations"] # [(currency, denom, conf), ...]
+    top_curs     = r["top_currencies"]
+    top_dens     = r["top_denominations"]
 
-    # ── MobileNetV2 denomination overrides ───────────────────────────────────
-    # EUR label map fixed: class IDs 0-11 now mapped to real denominations
-    # (€5,€10,€20,€50) via OCR+color analysis on org_data crops.
-    # EUR covers only €5-€50 (dataset limitation) — €100+ still OCR-only.
-    # BankNote-Net disabled: rebuilt encoder gives wrong embeddings.
-    try:
-        if currency == "INR" and _load_inr():
-            denom, conf, tops = _mobilenet_predict(img_bgr, _inr_model, _inr_labels, "INR")
-            denomination = denom
-            den_conf     = conf
-            top_dens     = tops
-    except Exception:
-        pass
-
+    # ── TFLite MobileNetV2 denomination overrides ─────────────────────────────
     try:
         if currency == "USD" and _load_usd():
-            denom, conf, tops = _mobilenet_predict(img_bgr, _usd_model, _usd_labels, "USD")
+            denom, conf, tops = _mobilenet_predict(img_bgr, _usd_interp, _usd_labels, "USD")
             denomination = denom
             den_conf     = conf
             top_dens     = tops
@@ -270,12 +331,21 @@ def predict(
 
     try:
         if currency == "EUR" and _load_eur():
-            denom, conf, tops = _mobilenet_predict(img_bgr, _eur_model, _eur_labels, "EUR")
+            denom, conf, tops = _mobilenet_predict(img_bgr, _eur_interp, _eur_labels, "EUR")
             denomination = denom
             den_conf     = conf
             top_dens     = tops
     except Exception:
-        pass  # keep heuristic values
+        pass
+
+    try:
+        if currency == "INR" and _load_inr():
+            denom, conf, tops = _mobilenet_predict(img_bgr, _inr_interp, _inr_labels, "INR")
+            denomination = denom
+            den_conf     = conf
+            top_dens     = tops
+    except Exception:
+        pass
 
     return {
         "currency":            currency,

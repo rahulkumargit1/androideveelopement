@@ -50,9 +50,10 @@ models/*.tflite
 *.h5
 *.keras
 *.joblib
-*.tflite
 # BankNote-Net data file (50 MB — not in version control)
 banknote_net.csv
+# TFLite files ARE tracked (small: 1-10 MB, needed for EC2 deployment)
+# *.tflite  ← do NOT exclude
 
 # Training datasets (large — not in version control)
 USD_data/
