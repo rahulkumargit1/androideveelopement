@@ -55,6 +55,12 @@ export interface CurrencyConfig {
   enabled: boolean; denominations: string[]; accuracy?: number | null;
 }
 export interface Setting { key: string; value: any; }
+export interface UserOut {
+  id: number;
+  email: string;
+  full_name: string;
+  role: "admin" | "inspector" | "viewer";
+}
 
 async function getToken() { try { return await SecureStore.getItemAsync(TOKEN_KEY); } catch { return null; } }
 async function setToken(t: string) { try { await SecureStore.setItemAsync(TOKEN_KEY, t); } catch {} }
@@ -88,7 +94,22 @@ async function req<T>(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_
     let detail = res.statusText;
     try {
       const text = await res.text();
-      try { detail = JSON.parse(text).detail || detail; } catch { /* HTML/non-JSON response */ }
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed.detail === "string") {
+          detail = parsed.detail;
+        } else if (Array.isArray(parsed.detail)) {
+          // Pydantic validation errors — extract the human-readable msg fields
+          detail = parsed.detail
+            .map((d: any) => {
+              const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
+              return field ? `${field}: ${d.msg}` : (d.msg || JSON.stringify(d));
+            })
+            .join("; ");
+        } else if (parsed.detail) {
+          detail = String(parsed.detail);
+        }
+      } catch { /* HTML/non-JSON response */ }
     } catch {}
     throw new Error(`${res.status} ${detail}`);
   }
@@ -153,6 +174,7 @@ export const api = {
 
   logout: clearToken,
   isAuthed: async () => !!(await getToken()),
+  me: () => req<UserOut>(`/api/auth/me`),
 
   scan: async (uri: string, hintCurrency?: string): Promise<ScanResult> => {
     const fd = new FormData();

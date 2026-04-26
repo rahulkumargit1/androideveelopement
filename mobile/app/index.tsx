@@ -16,7 +16,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
-import { api, ScanResult, CurrencyConfig } from "../src/api/client";
+import { api, ScanResult, CurrencyConfig, UserOut } from "../src/api/client";
 import ResultCard from "../src/components/ResultCard";
 
 /* Compress image before upload.
@@ -82,12 +82,25 @@ export default function ScanScreen() {
   const cam = useRef<CameraView | null>(null);
   const stepInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Auth state
+  const [me, setMe] = useState<UserOut | null | undefined>(undefined); // undefined = loading
+
   // Currency selector state
   const [currencies, setCurrencies]   = useState<CurrencyConfig[]>(FALLBACK_CURRENCIES);
   const [selected, setSelected]       = useState<CurrencyConfig>(FALLBACK_CURRENCIES[0]);
   const [pickerOpen, setPickerOpen]   = useState(false);
 
   useEffect(() => {
+    // Fetch user profile (tells us role + whether logged in)
+    api.isAuthed().then(async (yes) => {
+      if (yes) {
+        try { setMe(await api.me()); }
+        catch { setMe(null); }
+      } else {
+        setMe(null);
+      }
+    });
+
     api.currencies()
       .then((list) => {
         const enabled = list.filter((c) => c.enabled);
@@ -194,6 +207,30 @@ export default function ScanScreen() {
           </View>
         </View>
       </View>
+
+      {/* ── Auth banners ───────────────────────────────────── */}
+      {me === null && (
+        <View style={s.authBanner}>
+          <Ionicons name="lock-closed-outline" size={18} color="#162e51" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.authBannerTitle}>Sign in to scan</Text>
+            <Text style={s.authBannerBody}>
+              Go to Settings → Account to sign in or register.
+            </Text>
+          </View>
+        </View>
+      )}
+      {me?.role === "viewer" && (
+        <View style={[s.authBanner, { borderColor: "#ffe082", backgroundColor: "#fff8e1" }]}>
+          <Ionicons name="eye-outline" size={18} color="#5c410a" />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.authBannerTitle, { color: "#5c410a" }]}>View-only account</Text>
+            <Text style={[s.authBannerBody, { color: "#7a5700" }]}>
+              Your Viewer account cannot submit scans. Ask an Admin to upgrade your role.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* ── Camera card ────────────────────────────────────── */}
       <View style={s.card}>
@@ -348,6 +385,15 @@ const s = StyleSheet.create({
   safeArea:    { flex: 1, backgroundColor: T.navy },
   page:        { flex: 1, backgroundColor: T.bg },
   pageContent: { paddingBottom: 48 },
+
+  /* Auth banners */
+  authBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    backgroundColor: "#e8f0fb", borderWidth: 1, borderColor: "#aac4e8",
+    borderRadius: 10, marginHorizontal: 16, marginTop: 12, padding: 12,
+  },
+  authBannerTitle: { fontWeight: "700", color: "#162e51", fontSize: 13, marginBottom: 2 },
+  authBannerBody:  { color: "#2d4a7a", fontSize: 12, lineHeight: 17 },
 
   /* Hero */
   hero: {

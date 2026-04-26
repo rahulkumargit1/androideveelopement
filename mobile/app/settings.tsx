@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
-import { api, CurrencyConfig } from "../src/api/client";
+import { api, CurrencyConfig, UserOut } from "../src/api/client";
 import { colors, radius } from "../src/theme";
 
 const API_URL_KEY = "vc_api_url";
@@ -135,36 +135,127 @@ function ServerSection() {
 }
 
 // ── Account section ───────────────────────────────────────────────────────────
+const ROLE_COLORS: Record<string, string> = {
+  admin:     "#162e51",
+  inspector: "#2378c3",
+  viewer:    "#565c65",
+};
+const ROLE_LABELS: Record<string, string> = {
+  admin:     "Admin",
+  inspector: "Inspector",
+  viewer:    "Viewer (read-only)",
+};
+
 function AccountSection() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [authed, setAuthed] = useState(false);
+  const [user, setUser] = useState<UserOut | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { api.isAuthed().then(setAuthed); }, []);
+  // On mount — check if already signed in and fetch profile
+  useEffect(() => {
+    api.isAuthed().then(async (yes) => {
+      if (yes) {
+        try { setUser(await api.me()); } catch { /* token expired — ignore */ }
+      }
+      setLoading(false);
+    });
+  }, []);
 
   async function submit() {
+    const trimmedEmail = email.trim();
+    const trimmedPw    = pw.trim();
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      Alert.alert("Invalid email", "Please enter a valid email address.");
+      return;
+    }
+    if (!trimmedPw) {
+      Alert.alert("Password required", "Please enter a password.");
+      return;
+    }
+    if (mode === "register" && trimmedPw.length < 6) {
+      Alert.alert("Password too short", "Password must be at least 6 characters.");
+      return;
+    }
     try {
-      if (mode === "register") await (api as any).register(email, pw, name);
-      await (api as any).login(email, pw);
-      setAuthed(true);
-      Alert.alert("Success", "Signed in.");
-    } catch (e: any) { Alert.alert("Error", e.message); }
+      if (mode === "register") {
+        await api.register(trimmedEmail, trimmedPw, name.trim() || undefined);
+      }
+      await api.login(trimmedEmail, trimmedPw);
+      // Fetch profile to show role
+      const profile = await api.me();
+      setUser(profile);
+      Alert.alert(
+        "Signed in",
+        `Welcome, ${profile.full_name}!\nRole: ${ROLE_LABELS[profile.role] ?? profile.role}`,
+      );
+    } catch (e: any) {
+      Alert.alert("Sign in failed", e.message);
+    }
   }
-  async function logout() { await api.logout(); setAuthed(false); }
+
+  async function logout() {
+    await api.logout();
+    setUser(null);
+  }
+
+  if (loading) {
+    return (
+      <View style={s.card}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
 
   return (
     <View style={s.card}>
       <Text style={s.h2}><Ionicons name="person-outline" size={15} /> Account</Text>
-      {authed ? (
-        <TouchableOpacity style={s.btnGhost} onPress={logout}>
-          <Ionicons name="log-out-outline" size={18} color={colors.text} />
-          <Text style={[s.btnTxt, { color: colors.text }]}>Sign out</Text>
-        </TouchableOpacity>
+
+      {user ? (
+        /* ── Signed-in state ── */
+        <View style={{ gap: 10 }}>
+          {/* User info tile */}
+          <View style={{
+            backgroundColor: colors.sunken, borderRadius: 8,
+            padding: 12, borderWidth: 1, borderColor: colors.border,
+          }}>
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>
+              {user.full_name}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+              {user.email}
+            </Text>
+            <View style={{
+              marginTop: 8, alignSelf: "flex-start",
+              backgroundColor: ROLE_COLORS[user.role] ?? "#565c65",
+              paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99,
+            }}>
+              <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
+                {ROLE_LABELS[user.role] ?? user.role}
+              </Text>
+            </View>
+          </View>
+
+          {user.role === "viewer" && (
+            <View style={{ backgroundColor: "#fff8e1", borderRadius: 6, padding: 10,
+              borderWidth: 1, borderColor: "#ffe082" }}>
+              <Text style={{ color: "#5c410a", fontSize: 12 }}>
+                Viewer accounts can only read history — scanning requires an Inspector or Admin account.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity style={s.btnGhost} onPress={logout}>
+            <Ionicons name="log-out-outline" size={15} color={colors.text} />
+            <Text style={[s.btnTxt, { color: colors.text }]}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
+        /* ── Sign-in / register form ── */
         <>
-          {mode === "register" && <Field label="Full name" v={name} on={setName} />}
+          {mode === "register" && <Field label="Full name (optional)" v={name} on={setName} />}
           <Field label="Email" v={email} on={setEmail} />
           <Field label="Password" v={pw} on={setPw} secure />
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
@@ -177,6 +268,10 @@ function AccountSection() {
               <Text style={s.btnTxt}>{mode === "login" ? "Sign in" : "Register"}</Text>
             </TouchableOpacity>
           </View>
+          <Text style={s.note}>
+            The first account registered on this server becomes Admin.
+            Others are Inspector by default.
+          </Text>
         </>
       )}
     </View>
