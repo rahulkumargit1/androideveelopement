@@ -347,6 +347,46 @@ def predict(
     except Exception:
         pass
 
+    # ── TFLite probe: correct Lab mis-IDs for same-colour currencies ───────────
+    # USD/EUR/GBP notes all have a grey-green/pastel base — Lab colour analysis
+    # can mistake them for SGD, CAD, HKD, AUD, CHF, etc. when printed elements
+    # (portrait, security strip) dominate the colour sample.
+    # Fix: when no currency_hint is given and Lab chose a same-colour currency
+    # that has no dedicated TFLite model, probe the USD and EUR models.
+    # Genuine USD/EUR images score >70%; unrelated images score ~15–25%.
+    _SAME_COLOUR_NO_TFLITE = {
+        "GBP", "JPY", "AUD", "CAD", "CHF", "SGD",
+        "HKD", "KRW", "CNY", "THB", "MYR",
+    }
+    if currency_hint is None and currency in _SAME_COLOUR_NO_TFLITE:
+        try:
+            probe_best_cur  = None
+            probe_best_conf = 0.0
+            probe_best_den  = ""
+            probe_best_tops: list = []
+
+            for probe_cur, load_fn, get_interp, get_labels in [
+                ("USD", _load_usd, lambda: _usd_interp, lambda: _usd_labels),
+                ("EUR", _load_eur, lambda: _eur_interp, lambda: _eur_labels),
+            ]:
+                if load_fn():
+                    d, c, tops = _mobilenet_predict(
+                        img_bgr, get_interp(), get_labels(), probe_cur
+                    )
+                    if c > probe_best_conf:
+                        probe_best_conf = c
+                        probe_best_cur  = probe_cur
+                        probe_best_den  = d
+                        probe_best_tops = tops
+
+            if probe_best_conf >= 0.65 and probe_best_cur:
+                currency    = probe_best_cur
+                denomination = probe_best_den
+                den_conf    = probe_best_conf
+                top_dens    = probe_best_tops
+        except Exception:
+            pass
+
     return {
         "currency":            currency,
         "denomination":        denomination,

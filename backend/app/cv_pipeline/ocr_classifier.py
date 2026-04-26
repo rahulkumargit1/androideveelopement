@@ -123,8 +123,8 @@ for _d in CURRENCY_DENOMS.values():
 # Ordered from most-specific to least-specific
 CURRENCY_KEYWORDS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"[₹\u20b9]|rupee|rupees|bharatiya|reserve.?bank.?of.?india|rbi", re.I), "INR"),
-    (re.compile(r"federal.?reserve|united.?states|the.?united.?states", re.I), "USD"),
-    (re.compile(r"european.?central|banque.?centrale.?europ|\beuro\b|\beuros\b", re.I), "EUR"),
+    (re.compile(r"federal.?reserve|united.?states|the.?united.?states|in.?god.?we.?trust|secretary.?of.?the.?treasury|dollar|dollars", re.I), "USD"),
+    (re.compile(r"european.?central|banque.?centrale.?europ|\beuro\b|\beuros\b|\beur\b", re.I), "EUR"),
     (re.compile(r"bank.?of.?england|£|pound.?sterling|sterling", re.I), "GBP"),
     (re.compile(r"nippon.?ginko|bank.?of.?japan|日本銀行", re.I), "JPY"),
     (re.compile(r"united.?arab.?emirates|emirates|dirham|الإمارات", re.I), "AED"),
