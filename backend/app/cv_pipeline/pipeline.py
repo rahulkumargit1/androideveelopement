@@ -47,6 +47,14 @@ def _decode(image_bytes: bytes) -> np.ndarray:
     img = ImageOps.exif_transpose(img).convert("RGB")
     arr = np.array(img)[:, :, ::-1].copy()   # RGB -> BGR
     h, w = arr.shape[:2]
+    # Upscale tiny images (thumbnails from web searches etc.) so CV ops have
+    # enough pixels — Canny, FFT, morphology all need ≥ 200px on the short side.
+    min_side = 300
+    if min(h, w) < min_side:
+        s = min_side / min(h, w)
+        arr = cv2.resize(arr, (int(w * s), int(h * s)), interpolation=cv2.INTER_CUBIC)
+        h, w = arr.shape[:2]
+    # Downscale very large images to keep processing fast
     max_side = 1024
     if max(h, w) > max_side:
         s = max_side / max(h, w)
@@ -106,26 +114,46 @@ def analyze(
 
         # ── Cross-validate denomination: ML colour analysis vs OCR text ─────────
         #
-        # ML Lab-colour override is ONLY allowed for currencies whose denominations
-        # have VISUALLY DISTINCT colours (INR: each denom is a different colour).
-        # For currencies where all denominations share the same colour family,
-        # OCR is always authoritative — ML colour spread is near zero and an
-        # override would silently clobber correct OCR results.
+        # Two cases where ML is allowed to override OCR:
+        #
+        # Case 1 — Distinct-colour currencies (INR etc.):
+        #   Each denomination has a unique colour, so Lab-space ML is reliable.
+        #   Override whenever ML is decisive (≥62% conf, ≥18% spread).
+        #
+        # Case 2 — Same-colour currencies (USD, EUR, GBP …) where OCR is uncertain:
+        #   All denominations share the same colour family, so Lab ML is normally
+        #   unreliable.  BUT if OCR confidence is low (< 0.80 → denomination
+        #   appeared only once in the scan — typical of a serial-number fragment
+        #   like "A12345678" yielding a stray "2") AND the TFLite visual classifier
+        #   is very decisive (≥90% conf, ≥35% spread), the ML read is more
+        #   trustworthy than a single spurious OCR hit.
         #
         ml_top    = ml["top_denominations"][0] if ml["top_denominations"] else None
         ml_second = ml["top_denominations"][1] if len(ml["top_denominations"]) > 1 else None
         ml_spread = (ml_top[2] - ml_second[2]) if (ml_top and ml_second) else (ml_top[2] if ml_top else 0.0)
 
+        # OCR confidence < 0.80 means the denomination appeared only once in the
+        # full scan text — high chance it came from a serial number, not the
+        # printed denomination (which normally appears 2-4× on a real note).
+        ocr_uncertain = ocr_conf < 0.80
+
         ml_decisive = (
             ml_top is not None
-            and out_currency not in OCR_ALWAYS_WINS   # ← never override OCR for these
             and ml_top[2]  >= 0.62   # strong absolute confidence
             and ml_spread  >= 0.18   # clearly ahead of second-best denomination
+            and (
+                out_currency not in OCR_ALWAYS_WINS            # Case 1: distinct colours
+                or (                                            # Case 2: same colour, but OCR is weak
+                    ocr_uncertain
+                    and ml_top[2]  >= 0.90   # ML must be very confident
+                    and ml_spread  >= 0.35   # ML must dominate all other denominations
+                )
+            )
         )
 
         if ml_decisive and ml_top[1] != ocr_den:
             out_denomination = ml_top[1]
-            override_note    = f"ml_override({ml_top[2]:.0%},Δ{ml_spread:.0%})"
+            override_note    = f"ml_override({ml_top[2]:.0%},Δ{ml_spread:.0%},ocr_conf={ocr_conf:.0%})"
         else:
             out_denomination = ocr_den
             override_note    = None
@@ -245,6 +273,15 @@ def analyze(
             "chroma_min":  matched_profile.chroma_min,
             "chroma_max":  matched_profile.chroma_max,
         }
+
+    # ── Final safety net: never return None for currency/denomination ────────
+    # OCR may identify a denomination without a currency, and the visual classifier
+    # may fail entirely on non-currency images.  ScanResult requires strings, so
+    # surface "Unknown" to the user instead of crashing the request with a 500.
+    if not out_currency:
+        out_currency = "Unknown"
+    if not out_denomination:
+        out_denomination = "unknown"
 
     # ── Demonetization check ──────────────────────────────────────────────────
     is_demonetized = out_denomination in DEMONETIZED.get(out_currency, set())

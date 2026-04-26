@@ -1,5 +1,5 @@
 // Typed API client for the VeriCash backend.
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 const TOKEN_KEY = "vc_token";
 
 export type Verdict = "authentic" | "suspicious" | "counterfeit";

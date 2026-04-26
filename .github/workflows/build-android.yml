@@ -14,6 +14,9 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
 
     steps:
       - name: Checkout code
@@ -23,6 +26,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -87,7 +92,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          key: gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/**/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
       # ── Bundle JS into the APK (release build packages JS automatically) ─────
@@ -98,8 +103,8 @@ jobs:
 
       - name: Rename APK
         run: |
-          mkdir -p output
-          cp android/app/build/outputs/apk/release/app-release.apk output/VeriCash.apk
+          mkdir -p ../output
+          cp android/app/build/outputs/apk/release/app-release.apk ../output/VeriCash.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -135,7 +140,6 @@ jobs:
             2. Enable **Install unknown apps** in Android settings
             3. Open the APK and install
             4. Open VeriCash → Settings → enter your server URL
-               - AWS backend: `http://<your-ec2-ip>:8001`
-               - Local WiFi: `http://192.168.x.x:8001`
+               - AWS backend: `https://54.162.220.67.nip.io`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -45,7 +45,7 @@ export default function Home() {
   const [results, setResults] = useState<ScanResult[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [hint, setHint] = useState<string>("INR");
+  const [hint, setHint] = useState<string>("");
   const [currencies, setCurrencies] = useState<CurrencyConfig[]>([]);
   const [me, setMe] = useState<UserOut | null | undefined>(undefined);
   const [mode, setMode] = useState<"single" | "batch">("single");

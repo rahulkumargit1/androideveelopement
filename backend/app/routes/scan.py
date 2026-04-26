@@ -135,7 +135,19 @@ async def scan_note(
     if hint:
         enabled_codes = [hint]
 
-    return await _run_single_scan(data, image.filename or "note.jpg", hint, enabled_codes, user.id if user else None, db)
+    try:
+        return await _run_single_scan(data, image.filename or "note.jpg", hint, enabled_codes, user.id if user else None, db)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Any pipeline error → 422 with a clear message instead of a 500
+        # ("backend not running") that the frontend interprets as a crash.
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Could not analyse image: {type(exc).__name__}: {exc}",
+        )
 
 
 @router.post("/batch", response_model=list[ScanResult])
@@ -160,15 +172,41 @@ async def scan_batch(
     if hint:
         enabled_codes = [hint]
 
-    results = []
+    results: list[ScanResult] = []
+    skipped: list[dict] = []   # for logging visibility — surfaced in breakdown of last result
+
     for img in images:
+        fname = img.filename or "note.jpg"
         if img.content_type and img.content_type not in ALLOWED_TYPES:
+            skipped.append({"file": fname, "reason": f"unsupported type: {img.content_type}"})
             continue
         data = await img.read()
-        if len(data) < 1024 or len(data) > settings.max_upload_mb * 1024 * 1024:
+        if len(data) < 1024:
+            skipped.append({"file": fname, "reason": "image too small (< 1 KB)"})
             continue
-        r = await _run_single_scan(data, img.filename or "note.jpg", hint, enabled_codes, user.id, db)
-        results.append(r)
+        if len(data) > settings.max_upload_mb * 1024 * 1024:
+            skipped.append({"file": fname, "reason": f"image too large (> {settings.max_upload_mb} MB)"})
+            continue
+        try:
+            r = await _run_single_scan(data, fname, hint, enabled_codes, user.id, db)
+            results.append(r)
+        except Exception as exc:
+            # One bad image must not abort the whole batch — log and continue
+            import traceback
+            print(f"[batch] skipped {fname!r}: {type(exc).__name__}: {exc}")
+            traceback.print_exc()
+            skipped.append({"file": fname, "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+
+    # Tag the first result with the skipped list so the frontend can show what
+    # got dropped from the batch (e.g. "2 of 4 images couldn't be processed").
+    if results and skipped:
+        results[0].breakdown = {**results[0].breakdown, "batch_skipped": skipped}
+
+    if not results:
+        details = "; ".join(f"{s['file']}: {s['reason']}" for s in skipped) or "no valid images"
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            f"No images could be processed. {details}")
     return results
 
 
