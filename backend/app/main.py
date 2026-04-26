@@ -227,9 +227,13 @@ async def lifespan(_app: FastAPI):
     # Run in background so startup isn't blocked — models ready before first real scan.
     async def _prewarm_ml():
         import numpy as np
-        from .cv_pipeline import classifier
+        from .cv_pipeline import classifier, ocr_classifier
         dummy = np.zeros((224, 224, 3), dtype=np.uint8)
         await loop.run_in_executor(None, lambda: classifier.predict(dummy))
+        # Pre-warm Hindi OCR so first INR scan doesn't pay the disk-load penalty.
+        # Loading devanagari.pth (206 MB) after a service restart on low-RAM EC2
+        # can push total scan time over the 120s mobile timeout.
+        await loop.run_in_executor(None, lambda: ocr_classifier.prewarm("INR"))
     asyncio.create_task(_prewarm_ml())
     yield
 

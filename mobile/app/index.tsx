@@ -266,8 +266,9 @@ export default function ScanScreen() {
         <View style={s.actions}>
           {!active ? (
             <TouchableOpacity
-              style={s.btnPrimary}
+              style={[s.btnPrimary, me?.role === "viewer" && s.btnDisabled]}
               activeOpacity={0.85}
+              disabled={me?.role === "viewer"}
               onPress={async () => {
                 if (!permission?.granted) {
                   const r = await requestPermission();
@@ -282,9 +283,9 @@ export default function ScanScreen() {
           ) : (
             <>
               <TouchableOpacity
-                style={[s.btnPrimary, busy && s.btnDisabled]}
+                style={[s.btnPrimary, (busy || me?.role === "viewer") && s.btnDisabled]}
                 onPress={snap}
-                disabled={busy}
+                disabled={busy || me?.role === "viewer"}
                 activeOpacity={0.85}
               >
                 {busy ? (
@@ -307,8 +308,9 @@ export default function ScanScreen() {
             </>
           )}
           <TouchableOpacity
-            style={s.btnSecondary}
+            style={[s.btnSecondary, me?.role === "viewer" && s.btnDisabled]}
             onPress={pick}
+            disabled={me?.role === "viewer"}
             activeOpacity={0.85}
           >
             <Ionicons name="image-outline" size={18} color={T.navyMid} />
