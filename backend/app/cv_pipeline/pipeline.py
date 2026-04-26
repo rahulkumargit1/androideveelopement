@@ -108,7 +108,11 @@ def analyze(
     )
 
     if ocr:
-        out_currency = ocr["currency"]
+        # OCR may find a denomination but fail to identify the currency
+        # (e.g. digit-scan returns "500" without any currency keyword match).
+        # Fall back to ML's currency in that case — ML's colour classifier is
+        # more reliable for currency identity than denomination-only OCR.
+        out_currency = ocr["currency"] or ml["currency"]
         ocr_den  = ocr["denomination"]
         ocr_conf = float(ocr.get("ocr_confidence", 0.0))
 
@@ -155,7 +159,9 @@ def analyze(
             out_denomination = ml_top[1]
             override_note    = f"ml_override({ml_top[2]:.0%},Δ{ml_spread:.0%},ocr_conf={ocr_conf:.0%})"
         else:
-            out_denomination = ocr_den
+            # If OCR denomination is None (OCR found currency but no denomination),
+            # fall back to ML's top denomination rather than returning None.
+            out_denomination = ocr_den or (ml_top[1] if ml_top else None)
             override_note    = None
 
         ocr_info = {
