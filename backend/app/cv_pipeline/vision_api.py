@@ -108,7 +108,7 @@ def detect(img_bgr: np.ndarray) -> dict | None:
         return None
 
     return {
-        "currency":       currency or "INR",
+        "currency":       currency,   # None is fine — pipeline falls back to ml["currency"]
         "denomination":   denomination,
         "ocr_confidence": round(confidence, 3),
         "ocr_texts":      texts[:20],

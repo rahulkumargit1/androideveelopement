@@ -121,13 +121,15 @@ export default function MembersScreen() {
 }
 
 function MemberCard({ m }: { m: TeamMember }) {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const fallback = `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(m.name)}&backgroundColor=1a4480&textColor=ffffff&fontSize=38`;
   return (
     <View style={c.card}>
-      {/* Avatar */}
+      {/* Avatar — onError fallback because defaultSource only works with require() on RN */}
       <Image
-        source={{ uri: avatarUrl(m) }}
+        source={{ uri: imgFailed || !m.photo_url ? fallback : m.photo_url }}
         style={c.avatar}
-        defaultSource={{ uri: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(m.name)}` }}
+        onError={() => setImgFailed(true)}
       />
 
       {/* Body */}

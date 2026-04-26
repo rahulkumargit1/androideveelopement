@@ -12,6 +12,12 @@ import { colors, radius } from "../src/theme";
 const API_URL_KEY = "vc_api_url";
 
 export default function SettingsScreen() {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  function onRoleKnown(role: string) {
+    setIsAdmin(role === "admin");
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
@@ -20,9 +26,9 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <ServerSection />
-        <AccountSection />
-        <DetectionSection />
-        <CurrenciesSection />
+        <AccountSection onRoleKnown={onRoleKnown} />
+        <DetectionSection isAdmin={isAdmin} />
+        <CurrenciesSection isAdmin={isAdmin} />
         <AboutSection />
       </ScrollView>
     </SafeAreaView>
@@ -146,7 +152,7 @@ const ROLE_LABELS: Record<string, string> = {
   viewer:    "Viewer (read-only)",
 };
 
-function AccountSection() {
+function AccountSection({ onRoleKnown }: { onRoleKnown: (role: string) => void }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [name, setName] = useState("");
@@ -158,7 +164,11 @@ function AccountSection() {
   useEffect(() => {
     api.isAuthed().then(async (yes) => {
       if (yes) {
-        try { setUser(await api.me()); } catch { /* token expired — ignore */ }
+        try {
+          const profile = await api.me();
+          setUser(profile);
+          onRoleKnown(profile.role);
+        } catch { /* token expired — ignore */ }
       }
       setLoading(false);
     });
@@ -187,6 +197,7 @@ function AccountSection() {
       // Fetch profile to show role
       const profile = await api.me();
       setUser(profile);
+      onRoleKnown(profile.role);
       Alert.alert(
         "Signed in",
         `Welcome, ${profile.full_name}!\nRole: ${ROLE_LABELS[profile.role] ?? profile.role}`,
@@ -199,6 +210,7 @@ function AccountSection() {
   async function logout() {
     await api.logout();
     setUser(null);
+    onRoleKnown("");
   }
 
   if (loading) {
@@ -279,7 +291,7 @@ function AccountSection() {
 }
 
 // ── Detection thresholds ──────────────────────────────────────────────────────
-function DetectionSection() {
+function DetectionSection({ isAdmin }: { isAdmin: boolean }) {
   const [auth, setAuth] = useState("0.60");
   const [susp, setSusp] = useState("0.38");
 
@@ -309,23 +321,31 @@ function DetectionSection() {
   return (
     <View style={s.card}>
       <Text style={s.h2}><Ionicons name="options-outline" size={15} /> Detection Thresholds</Text>
-      <Field label="Authentic ≥" v={auth} on={setAuth} />
-      <Field label="Suspicious ≥" v={susp} on={setSusp} />
-      <TouchableOpacity style={[s.btn, { alignSelf: "flex-end" }]} onPress={save}>
-        <Text style={s.btnTxt}>Save</Text>
-      </TouchableOpacity>
-      <Text style={s.note}>Admin only. Affects the authenticity verdict threshold.</Text>
+      {!isAdmin && (
+        <View style={{ backgroundColor: "#fff8e1", borderRadius: 6, padding: 8, marginBottom: 8,
+          borderWidth: 1, borderColor: "#ffe082" }}>
+          <Text style={{ color: "#5c410a", fontSize: 12 }}>Admin account required to change thresholds.</Text>
+        </View>
+      )}
+      <Field label="Authentic ≥" v={auth} on={isAdmin ? setAuth : () => {}} />
+      <Field label="Suspicious ≥" v={susp} on={isAdmin ? setSusp : () => {}} />
+      {isAdmin && (
+        <TouchableOpacity style={[s.btn, { alignSelf: "flex-end" }]} onPress={save}>
+          <Text style={s.btnTxt}>Save</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 // ── Currencies toggle ─────────────────────────────────────────────────────────
-function CurrenciesSection() {
+function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
   const [items, setItems] = useState<CurrencyConfig[]>([]);
 
   useEffect(() => { api.currencies().then(setItems).catch(() => {}); }, []);
 
   async function toggle(c: CurrencyConfig) {
+    if (!isAdmin) return;
     try {
       const next = { ...c, enabled: !c.enabled };
       await api.upsertCurrency(next);
@@ -336,6 +356,12 @@ function CurrenciesSection() {
   return (
     <View style={s.card}>
       <Text style={s.h2}><Ionicons name="cash-outline" size={15} /> Currencies</Text>
+      {!isAdmin && (
+        <View style={{ backgroundColor: "#fff8e1", borderRadius: 6, padding: 8, marginBottom: 8,
+          borderWidth: 1, borderColor: "#ffe082" }}>
+          <Text style={{ color: "#5c410a", fontSize: 12 }}>Admin account required to enable or disable currencies.</Text>
+        </View>
+      )}
       {items.map((c) => (
         <View key={c.code} style={s.currRow}>
           <View style={{ flex: 1 }}>
@@ -344,7 +370,11 @@ function CurrenciesSection() {
               {c.denominations.join(", ")}
             </Text>
           </View>
-          <Switch value={c.enabled} onValueChange={() => toggle(c)} />
+          <Switch
+            value={c.enabled}
+            onValueChange={() => toggle(c)}
+            disabled={!isAdmin}
+          />
         </View>
       ))}
       {items.length === 0 && (
