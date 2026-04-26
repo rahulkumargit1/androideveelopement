@@ -1,0 +1,141 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # required to create/update GitHub Releases
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools"
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Prebuild Expo (generate Android project)
+        run: npx expo prebuild --platform android --non-interactive --clean
+        env:
+          EXPO_NO_DOTENV: 1
+
+      - name: Set Gradle permissions
+        run: chmod +x android/gradlew
+
+      # ── Generate a self-signed keystore for release signing ──────────────────
+      - name: Generate release keystore
+        run: |
+          cd android/app
+          keytool -genkeypair -v \
+            -storetype PKCS12 \
+            -keystore vericash-release.keystore \
+            -alias vericash \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=VeriCash, OU=Mobile, O=VeriCash, L=Bangalore, S=Karnataka, C=IN" \
+            -storepass vericash2024 \
+            -keypass vericash2024
+
+      # ── Inject signing config into gradle ────────────────────────────────────
+      - name: Configure release signing in gradle
+        run: |
+          # Append signing config to app/build.gradle
+          cat >> android/app/build.gradle << 'GRADLE'
+
+          android.signingConfigs {
+              release {
+                  storeFile file("vericash-release.keystore")
+                  storePassword "vericash2024"
+                  keyAlias "vericash"
+                  keyPassword "vericash2024"
+              }
+          }
+          android.buildTypes.release.signingConfig = android.signingConfigs.release
+          GRADLE
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      # ── Bundle JS into the APK (release build packages JS automatically) ─────
+      - name: Build release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+
+      - name: Rename APK
+        run: |
+          mkdir -p output
+          cp android/app/build/outputs/apk/release/app-release.apk output/VeriCash.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeriCash-APK
+          path: output/VeriCash.apk
+          retention-days: 90
+
+      # ── Always publish/update the "latest" release on every push to main ────
+      # Permanent download URL (never changes):
+      #   https://github.com/rahulkumargit1/androideveelopement/releases/latest/download/VeriCash.apk
+      - name: Publish permanent latest release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: VeriCash — Latest Build
+          prerelease: false
+          make_latest: true
+          files: output/VeriCash.apk
+          body: |
+            ## VeriCash Android App — Latest Build
+
+            **Permanent download link (always up to date):**
+            👉 [Download VeriCash.apk](https://github.com/rahulkumargit1/androideveelopement/releases/latest/download/VeriCash.apk)
+
+            Built from commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+            Date: ${{ github.event.head_commit.timestamp }}
+
+            ### Install steps
+            1. Download the APK to your Android phone
+            2. Enable **Install unknown apps** in Android settings
+            3. Open the APK and install
+            4. Open VeriCash → Settings → enter your server URL
+               - AWS backend: `http://<your-ec2-ip>:8001`
+               - Local WiFi: `http://192.168.x.x:8001`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

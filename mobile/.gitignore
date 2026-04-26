@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+build/
+.expo/
+.expo-shared/
+*.log
+npm-debug.log*
+
+# Mobile
+android/
+ios/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Project
+guidelines.txt
+design.html
+design-bundle/
+data/
+uploads/
+models/*.pt
+models/*.pth
+models/*.tflite
+*.db
+*.sqlite
+
+# ML model binary files (large — not in version control)
+*.h5
+*.keras
+*.joblib
+*.tflite
+# BankNote-Net data file (50 MB — not in version control)
+banknote_net.csv
+
+# Training datasets (large — not in version control)
+USD_data/
+USD_data*/
+EUR_clf_data/
+org_data/
+Train/
+Test/
+_train/
+_val/
+_cache*/
+
+# Claude / agent internals
+.claude/
+.agents/
+Caveman-Claude/
+skills-lock.json
+
+# Temp / one-off files
+FRIEND_PC_PROMPT.txt
+*.zip
+
+# OS
+.DS_Store

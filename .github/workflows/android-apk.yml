@@ -1,0 +1,67 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build-apk:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Expo prebuild (generates android/)
+        env:
+          EXPO_NO_TELEMETRY: 1
+          CI: true
+        run: npx expo prebuild --platform android --non-interactive --clean
+
+      - name: Make gradlew executable
+        run: chmod +x ./android/gradlew
+
+      - name: Assemble release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vericash-release-apk
+          path: mobile/android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Attach APK to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile/android/app/build/outputs/apk/release/*.apk
