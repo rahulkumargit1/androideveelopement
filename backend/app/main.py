@@ -66,6 +66,11 @@ DEFAULT_CURRENCIES = [
 # list against the database on every startup so that USNs, roles, and
 # contributions stay in sync with the source of truth (this file) without
 # wiping any extra members an admin may have added through the UI.
+_PHOTO_BASE = (
+    "https://raw.githubusercontent.com/rahulkumargit1/androideveelopement"
+    "/main/backend/static/photos"
+)
+
 DEFAULT_TEAM = [
     {
         "name": "Dhanush",
@@ -76,7 +81,7 @@ DEFAULT_TEAM = [
             "and currency catalogue endpoints."
         ),
         "github": "",
-        "photo_url": "",
+        "photo_url": f"{_PHOTO_BASE}/dhanush.jpeg",
         "order_index": 0,
     },
     {
@@ -88,7 +93,7 @@ DEFAULT_TEAM = [
             "ensemble that produces the authenticity score."
         ),
         "github": "",
-        "photo_url": "",
+        "photo_url": f"{_PHOTO_BASE}/alvita.jpeg",
         "order_index": 1,
     },
     {
@@ -100,7 +105,7 @@ DEFAULT_TEAM = [
             "currency / denomination classifier."
         ),
         "github": "",
-        "photo_url": "",
+        "photo_url": f"{_PHOTO_BASE}/carina.jpeg",
         "order_index": 2,
     },
     {
@@ -112,7 +117,7 @@ DEFAULT_TEAM = [
             "same backend — including the dark-mode design system."
         ),
         "github": "",
-        "photo_url": "",
+        "photo_url": f"{_PHOTO_BASE}/viona.jpeg",
         "order_index": 3,
     },
 ]

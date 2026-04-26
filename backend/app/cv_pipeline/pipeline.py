@@ -173,9 +173,16 @@ def analyze(
         out_currency = ml["currency"]
         # For currencies where all denominations share the same colour (USD, EUR etc.),
         # Lab colour ML cannot reliably distinguish denominations.
-        # Show "unknown" rather than a confidently-wrong Lab guess.
+        # HOWEVER, the per-currency TFLite models (usd_mobilenet, eur_mobilenet, etc.)
+        # ARE denomination-specific and reliable.  Use them when confident; otherwise
+        # show "unknown" to avoid a confidently-wrong Lab guess.
         if out_currency in OCR_ALWAYS_WINS:
-            out_denomination = "unknown"
+            ml_den_conf = float(ml.get("denom_confidence") or 0.0)
+            ml_den = ml.get("denomination") or ""
+            if ml_den_conf >= 0.55 and ml_den not in ("", "Unknown", "unknown"):
+                out_denomination = ml_den
+            else:
+                out_denomination = "unknown"
         else:
             out_denomination = ml["denomination"]
         ocr_info = None

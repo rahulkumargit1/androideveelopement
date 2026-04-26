@@ -564,12 +564,26 @@ function UsersPanel({ me }: { me: UserOut | null }) {
     if (newPw.length < 6) { setCreateErr("Password must be at least 6 characters."); return; }
     setCreateBusy(true);
     try {
-      // Register the user via the auth register endpoint, then update role if not inspector
+      // Register the user via the auth register endpoint.
+      // IMPORTANT: api.register() stores the new user's token, which would log
+      // the admin out. Save + restore the admin token so the session is intact.
+      const adminToken = typeof window !== "undefined"
+        ? localStorage.getItem("vc_token")
+        : null;
+
       const res = await api.register(newEmail, newPw, newName || undefined);
+
+      // Restore admin session immediately after register() overwrites it
+      if (adminToken && typeof window !== "undefined") {
+        localStorage.setItem("vc_token", adminToken);
+        window.dispatchEvent(new Event("vc-auth-changed"));
+      }
+
+      // Now update role using admin token (restored above)
       if (newRole !== "inspector") {
         await api.updateUser(res.user.id, { role: newRole });
       }
-      setMsg(`User ${newEmail} created.`);
+      setMsg(`User ${newEmail} created with role: ${newRole}.`);
       setCreating(false);
       setNewEmail(""); setNewName(""); setNewPw(""); setNewRole("inspector");
       load();
