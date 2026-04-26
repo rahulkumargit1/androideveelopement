@@ -6,7 +6,7 @@ Identification priority:
   3. Color fingerprint — Lab k-means for final disambiguation (fallback only)
 
 EasyOCR language groups loaded on demand based on currency hint:
-  - No hint      → ["en", "hi"]  (covers Latin digits + Devanagari)
+  - No hint      → ["en"]  (English only — adding Hindi interferes with Latin-script currencies)
   - INR/NPR hint → ["en", "hi"]
   - AED/SAR/QAR/KWD → ["en", "ar"]
   - CNY          → ["en", "ch_sim"]

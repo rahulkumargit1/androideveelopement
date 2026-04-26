@@ -1,11 +1,16 @@
 """Currency / denomination classifier.
 
-Priority chain:
-  1. BankNote-Net (96.8% currency / 92.4% denomination) — 17 currencies
-  2. TFLite MobileNetV2-USD — 97.8% accuracy, USD denominations
-  3. TFLite MobileNetV2-EUR — EUR classes from org_data
+Active priority chain (what predict() actually runs):
+  1. Lab colour fingerprints (colorspace.classify) — always runs, provides currency
+  2. TFLite MobileNetV2-USD — 97.8% accuracy, 6 USD denominations (1,2,5,10,50,100)
+     NOTE: USD $20 is NOT in this model's training set; OCR cross-validation handles $20.
+  3. TFLite MobileNetV2-EUR — EUR 5/10/20/50 only (100/200/500 fall back to Lab)
   4. TFLite MobileNetV2-INR — INR denominations
-  5. Heuristic Lab fingerprints (colorspace.classify) — always available
+  5. TFLite probe: corrects Lab mis-IDs for same-colour currencies (USD/EUR vs SGD/CAD etc.)
+
+BankNote-Net encoder (_bn_predict) is loaded from disk but intentionally NOT called
+in predict() — it requires full TensorFlow (~600 MB) and adds latency without
+significantly improving accuracy over the TFLite + Lab combination.
 
 TFLite models (.tflite) are preferred over .h5 — they use a tiny runtime
 (ai-edge-litert ~30 MB vs tensorflow-cpu ~600 MB) and run 2-3× faster.

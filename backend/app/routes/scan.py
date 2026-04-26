@@ -338,4 +338,3 @@ async def clear_history(
     result = await db.execute(q)
     await db.commit()
     return {"deleted": result.rowcount}
-# reload Fri Apr 24 15:39:03 IST 2026

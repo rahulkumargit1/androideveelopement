@@ -611,26 +611,28 @@ def profile_match_score(
     Distance 10  → 0.85 (minor lighting variation — still likely genuine)
     Distance 20  → 0.55 (substantial deviation — suspicious)
     Distance 30+ → 0.0  (completely wrong colour — likely counterfeit)
+
+    NOTE: when matched_profile is None (denomination unknown) we return 0.5
+    neutral rather than doing a secondary classify() which could pick a
+    different denomination than what the pipeline reported.
     """
-    L, a, b, chroma = lab_summary(img_bgr)
-
     if matched_profile is None:
-        # Fall back to best-match across all profiles
-        result = classify(img_bgr)
-        # Extract the matched profile
-        hint_cur = result["currency"]
-        hint_den = result["denomination"]
-        matched_profile = next(
-            (p for p in PROFILES
-             if p.currency == hint_cur and p.denomination == hint_den),
-            None,
-        )
-        if matched_profile is None:
-            return 0.5  # cannot find profile — neutral
+        return 0.5  # denomination unknown — neutral, do not re-classify
 
+    L, a, b, chroma = lab_summary(img_bgr)
     dist = _profile_distance(L, a, b, chroma, matched_profile)
-    # Map [0, 30] → [1.0, 0.0] with smooth decay
-    return float(max(0.0, min(1.0, 1.0 - dist / 30.0)))
+
+    # Piecewise linear decay matching the documented anchor points:
+    #   dist ≤ 10  → gentle slope (lighting/camera variation expected)
+    #   dist 10-20 → steeper slope (substantial colour deviation)
+    #   dist 20-30 → sharp drop to 0 (clearly wrong colour)
+    if dist <= 10.0:
+        score = 1.0 - dist * 0.015          # 0→1.0, 10→0.85
+    elif dist <= 20.0:
+        score = 0.85 - (dist - 10.0) * 0.030  # 10→0.85, 20→0.55
+    else:
+        score = 0.55 - (dist - 20.0) * 0.055  # 20→0.55, 30→0.0
+    return float(max(0.0, min(1.0, score)))
 
 
 def color_consistency_score(
@@ -645,20 +647,12 @@ def color_consistency_score(
     A note whose chroma is wildly outside the expected range is suspicious.
 
     Returns 1.0 when chroma is within the expected range, lower otherwise.
+    When matched_profile is None (denomination unknown) returns 0.5 neutral.
     """
-    _, _, _, chroma = lab_summary(img_bgr)
-
     if matched_profile is None:
-        result = classify(img_bgr)
-        hint_cur = result["currency"]
-        hint_den = result["denomination"]
-        matched_profile = next(
-            (p for p in PROFILES
-             if p.currency == hint_cur and p.denomination == hint_den),
-            None,
-        )
-        if matched_profile is None:
-            return 0.5
+        return 0.5  # denomination unknown — neutral, do not re-classify
+
+    _, _, _, chroma = lab_summary(img_bgr)
 
     p = matched_profile
     if chroma < p.chroma_min:
