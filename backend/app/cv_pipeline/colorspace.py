@@ -410,16 +410,38 @@ def _central_crop(img: np.ndarray, frac: float = 0.60) -> np.ndarray:
 
 # ── Colour summary ─────────────────────────────────────────────────────────────
 
+def _gray_world_wb(img_bgr: np.ndarray) -> np.ndarray:
+    """Gray-world white balance: scale each BGR channel so means match.
+
+    Neutralises lighting cast (yellow indoor light, blue cool-white LED, etc.)
+    so the Lab measurement reflects the note's true colour, not the room's
+    lighting. Without this, the same note photographed under different lights
+    produces wildly different Lab values, causing profile_match to flip-flop.
+    """
+    means = img_bgr.reshape(-1, 3).mean(axis=0)
+    target = float(means.mean())
+    # Avoid divide-by-zero for very dark channels
+    scale = target / np.clip(means, 1.0, None)
+    # Cap correction at 1.5× to avoid hyper-saturating images already balanced
+    scale = np.clip(scale, 0.7, 1.5)
+    out = img_bgr.astype(np.float32) * scale
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def lab_summary(img_bgr: np.ndarray) -> tuple[float, float, float, float]:
     """Return (L*, a*, b*, chroma) of the dominant chromatic cluster.
 
     Improvements over v1:
+    * Gray-world white balance neutralises lighting cast before measurement.
     * Note-boundary detection removes white table margins before sampling.
     * Adaptive chroma threshold (tries 10, falls back to 4).
     * k=5 clusters (was 3) for finer colour resolution.
     * Cluster scoring: sqrt(pop) × chroma^1.5 strongly prefers coloured
       clusters over large neutral (white/grey) ones.
     """
+    # Step 0: white-balance to neutralise lighting cast
+    img_bgr = _gray_world_wb(img_bgr)
+
     # Step 1: isolate the note
     _bounds = _find_note_bounds(img_bgr)
     crop = _bounds if _bounds is not None else _central_crop(img_bgr, 0.60)

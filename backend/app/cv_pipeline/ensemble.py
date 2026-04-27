@@ -15,10 +15,11 @@ from __future__ import annotations
 # are unreliable at phone resolution, so they are down-weighted.
 # profile_match is the strongest direct authenticity signal.
 WEIGHTS = {
-    "profile_match":      0.35,   # Lab distance to genuine-note profile (strongest signal)
-    "color_consistency":  0.15,   # Chroma within expected range for denomination
-    "texture_detail":     0.18,   # Laplacian variance in genuine-print band
-    "microprint_presence":0.07,   # FFT — unreliable at phone-camera resolution
+    "profile_match":      0.28,   # Lab distance to genuine-note profile (lighting-sensitive)
+    "ml_confidence":      0.12,   # TFLite MobileNet confidence (lighting-invariant anchor)
+    "color_consistency":  0.13,   # Chroma within expected range for denomination
+    "texture_detail":     0.16,   # Laplacian variance in genuine-print band
+    "microprint_presence":0.06,   # FFT — unreliable at phone-camera resolution
     "thread_detection":   0.06,   # Security thread — often not visible on phone photos
     "noise_consistency":  0.10,   # Genuine-paper noise range + moire check
     "histogram_profile":  0.05,   # Multi-modal histogram shape

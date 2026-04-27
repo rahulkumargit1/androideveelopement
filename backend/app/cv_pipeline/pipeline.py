@@ -225,8 +225,12 @@ def analyze(
     # exposure_valid: quality gate only — does NOT affect authenticity
     scores["exposure_valid"] = enhancement.exposure_score(img)
 
-    # ml_confidence kept in breakdown for reference but NOT in ensemble
+    # ml_confidence is the TFLite MobileNet's confidence in the predicted
+    # denomination. It is lighting-invariant (the network was trained on
+    # varied images), so it stabilises the ensemble against the more
+    # lighting-sensitive Lab profile_match signal.
     ml_confidence = float(ml["ml_confidence"])
+    scores["ml_confidence"] = ml_confidence
 
     # ── Step 5: Ensemble → final score → verdict ──────────────────────────────
     final = ensemble.combine(scores)
