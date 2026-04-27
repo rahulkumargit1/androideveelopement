@@ -15,15 +15,80 @@ const serif = Source_Serif_4({
   weight: ["400", "600", "700", "900"],
 });
 
+const SITE_URL = "https://vericash.duckdns.org";
+const SITE_NAME = "VeriCash";
+const TITLE = "VeriCash — Fake Currency Detection";
+const DESCRIPTION =
+  "Scan any banknote and get an instant authenticity verdict. " +
+  "Powered by 7 image-processing techniques including CIE Lab colour fingerprints, " +
+  "FFT micro-print analysis, and a TFLite classifier. Free to use — no sign-up needed.";
+
 export const metadata: Metadata = {
-  title: "VeriCash — Office of Currency Authentication",
-  description:
-    "Counterfeit-banknote detection through transparent image processing. " +
-    "Web inspector console + field APK on the same backend.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: DESCRIPTION,
+  keywords: [
+    "fake currency detection",
+    "counterfeit banknote",
+    "currency authentication",
+    "image processing",
+    "INR USD EUR",
+    "VeriCash",
+  ],
+  authors: [{ name: "VeriCash Project Team" }],
+  creator: "VeriCash",
+
+  /* ── Open Graph (WhatsApp, Facebook, LinkedIn, Telegram) ── */
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "VeriCash — Fake Currency Detection",
+      },
+    ],
+    locale: "en_US",
+  },
+
+  /* ── Twitter / X card ──────────────────────────────────── */
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og-image.svg"],
+    creator: "@vericash",
+  },
+
+  /* ── Icons ─────────────────────────────────────────────── */
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
     apple: "/favicon.svg",
+  },
+
+  /* ── Robots ────────────────────────────────────────────── */
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
+  },
+
+  /* ── Canonical ─────────────────────────────────────────── */
+  alternates: {
+    canonical: SITE_URL,
   },
 };
 
@@ -100,7 +165,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div>
               <div className="t-eyebrow mb-3">Project</div>
               <ul className="space-y-1 text-sm">
-                <li><a href="http://localhost:8001/docs" target="_blank" rel="noreferrer">API documentation</a></li>
+                <li><a href={`${SITE_URL}/api/docs`} target="_blank" rel="noreferrer">API documentation</a></li>
                 <li><a href="/status">System health</a></li>
                 <li><a href="/settings?s=About">About the project</a></li>
                 <li>
