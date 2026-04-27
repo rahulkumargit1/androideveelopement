@@ -42,6 +42,7 @@ jobs:
             # Rebuild web frontend
             echo "[3/4] Rebuilding web frontend..."
             cd /home/ubuntu/FAKECURRENCYDETECTION/web
+            echo 'NEXT_PUBLIC_API_URL=https://vericash.duckdns.org' > .env.local
             npm install --legacy-peer-deps --no-audit --no-fund 2>/dev/null
             npm run build
 
