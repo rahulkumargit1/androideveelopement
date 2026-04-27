@@ -1,72 +1,158 @@
-# VeriCash - Fake Currency Detection (Project Context)
+# VeriCash — Project Memory & Session Log
 
-This file (`claude.md`) serves as a system context document for any AI agents interacting with this repository. It outlines the purpose, architecture, and structural decisions made in the "VeriCash" project.
+> **Purpose:** This file captures everything that has been done across sessions so any AI model or developer joining the project knows the full context.
+
+---
 
 ## Project Overview
 
-**VeriCash** is an end-to-end fake currency detection system developed as a PBL (Problem Based Learning) project on real-world image-processing applications. It analyzes images of currency notes and uses a pipeline of classical computer vision techniques to determine their authenticity, returning a verdict of `authentic`, `suspicious`, or `counterfeit`.
+**VeriCash** is a fake currency detection system with three components:
+- **Backend** (`/backend`): FastAPI + OpenCV + TFLite — 7-technique ensemble pipeline for banknote authentication
+- **Web** (`/web`): Next.js 14 App Router — inspector console with scan, history, settings, admin
+- **Mobile** (`/mobile`): Expo/React Native — camera-based scanner app
 
-## System Architecture
+### Architecture
+```
+User → Web (Next.js :3000) or Mobile (Expo APK)
+         ↓
+       Nginx (vericash.duckdns.org)
+         ↓ /api/* → Backend (FastAPI :8001)
+         ↓ /*     → Web (Next.js :3000)
+         ↓
+       7-Technique CV Pipeline → Verdict (authentic/suspicious/counterfeit)
+```
 
-The project consists of three main user-facing components, supported by an infrastructure layer:
+### 7 PBL Detection Techniques
+1. **Colour-space fingerprint** — CIE Lab dominant-colour k-means clustering
+2. **Frequency-domain analysis** — FFT magnitude spectrum for micro-print patterns
+3. **Edge & morphology** — Canny + morphological gradient for line sharpness
+4. **Histogram distribution** — Channel histogram comparison against reference
+5. **Noise-level estimation** — Gaussian noise variance measurement
+6. **Spatial-texture analysis** — GLCM (Gray Level Co-occurrence Matrix) features
+7. **TFLite classifier** — MobileNetV2 binary classifier for denomination detection
 
-- **Backend (`backend/`)**: Built with FastAPI. It houses the API, the SQLite database (for storing scans, team members, and settings), and the core image-processing pipeline (`cv_pipeline/`).
-- **Web App (`web/`)**: Built with Next.js 14. Provides a web interface for scanning notes, viewing scan history, team management, and system settings.
-- **Mobile App (`mobile/`)**: Built with Expo React Native. Serves as the Android application mirroring the web application's functionality.
-- **Infrastructure (`infra/`)**: Contains `docker-compose` configuration for a one-box local deployment.
-- **CI/CD (`.github/workflows/`)**: Automates backend and web tests, and specifically includes a workflow for building the Expo Android APK in the cloud without needing a local Android Studio setup.
+### Ensemble Scoring
+- Each technique produces a 0–1 score
+- Weighted ensemble via `ensemble.py` with configurable thresholds
+- Final verdict: `authentic` (≥0.55), `suspicious` (0.35–0.55), `counterfeit` (<0.35)
 
-## Image-Processing Pipeline
+---
 
-The core logic resides in the backend's `cv_pipeline`. To meet the PBL requirements, the system implements 6 of 7 standard image processing techniques, plus bonus items (color spaces beyond RGB and technique comparisons).
+## Deployment
 
-The techniques employed include:
-1. **Image Enhancement** (`cv_pipeline/enhancement.py`): CLAHE and gamma correction for lighting/contrast issues.
-2. **Histogram Processing** (`cv_pipeline/histogram.py`): Histogram equalization and Bhattacharyya distance for color distribution matching.
-3. **Spatial Filtering** (`cv_pipeline/spatial.py`): Bilateral filtering, Canny edge detection, and Laplacian variance for sharpness/edge analysis.
-4. **Frequency-Domain Filtering** (`cv_pipeline/frequency.py`): FFT high-pass filtering to detect fine, high-frequency security details like micro-printing.
-5. **Morphological Operations** (`cv_pipeline/morphology.py`): Vertical opening to analyze security thread continuity.
-6. **Color-Model Analysis** (`cv_pipeline/colorspace.py`): Converting to HSV and LaB spaces for robust color/denomination guessing.
+### EC2 (AWS Free Tier)
+- **IP:** 54.162.220.67
+- **Domain:** https://vericash.duckdns.org (SSL via Let's Encrypt)
+- **SSH Key:** `C:\Users\Lenovo\Downloads\vericash.pem` (local) — also at `infra/vericash.pem` (gitignored)
+- **Services:**
+  - `vericash.service` — Backend FastAPI on port **8001**
+  - `vericash-web.service` — Next.js web app on port **3000**
+- **Nginx** routes `/api/*` → 8001, everything else → 3000
+- **Deploy command:** `ssh ubuntu@54.162.220.67` then `cd FAKECURRENCYDETECTION && git pull && cd web && npm run build && sudo systemctl restart vericash vericash-web`
 
-These techniques generate sub-scores which are then aggregated by a weighted ensemble (`cv_pipeline/ensemble.py`) to produce the final authenticity rating. Note: While highly optimized for visible spectrum detection, it lacks physical UV/IR/magnetic sensors. The pipeline is designed to be plug-and-play with a CNN classifier if data becomes available (`cv_pipeline/classifier.py`).
+### GitHub Actions (CI/CD)
+- **`.github/workflows/deploy-ec2.yml`** — Auto-deploys backend + web on push to `main` (uses `EC2_HOST` and `EC2_SSH_KEY` secrets)
+- **`.github/workflows/build-android.yml`** — Builds signed APK, publishes to GitHub Releases with permanent download link
+- **`.github/workflows/android-apk.yml`** — Secondary APK build workflow
+- **`.github/workflows/backend-ci.yml`** — Runs pytest on backend changes
+- **`.github/workflows/web-ci.yml`** — Web CI checks
 
-## Quick Start & Dev Commands
+### Mobile APK
+- **EAS Project:** `@rahulgatty1/vericash` (ID: `b3fdb32c-e631-487c-9493-29a723a4d49c`)
+- **Download:** https://github.com/rahulkumargit1/androideveelopement/releases/latest/download/VeriCash.apk
+- **Build:** GitHub Actions auto-builds on push to `main` when `mobile/**` changes
 
-- **Backend**:
-  ```bash
-  cd backend
-  python -m venv .venv
-  source .venv/Scripts/activate  # Windows
-  pip install -r requirements.txt
-  cp .env.example .env
-  uvicorn app.main:app --reload --port 8000
-  ```
-  Swagger UI is at `http://localhost:8000/docs`
+### Environment Variables
+- **Web `.env.local` (local):** `NEXT_PUBLIC_API_URL=http://localhost:8001`
+- **Web `.env.local` (EC2):** `NEXT_PUBLIC_API_URL=https://vericash.duckdns.org` — **MUST exist** or the web app can't reach the API
+- **Backend `.env`:** `SECRET_KEY`, `DATABASE_URL`, `CORS_ORIGINS`
 
-- **Web Frontend**:
-  ```bash
-  cd web
-  npm install
-  npm run dev
-  ```
-  Running on `http://localhost:3000`
+---
 
-- **Mobile App**:
-  ```bash
-  cd mobile
-  npm install
-  npx expo start
-  ```
-  (App defaults to `http://10.0.2.2:8000` for the backend when run on an Android emulator)
+## Session Log
 
-- **Docker Deploy**:
-  ```bash
-  cd infra
-  docker compose up --build -d
-  ```
+### Session: 2026-04-28 (02:00–03:30 IST)
 
-## State & Data
+**Goal:** Fix UI issues from WhatsApp screenshots, deploy updates, set up CI/CD
 
-- The first user to register on the platform is automatically promoted to an **admin**.
-- Admins can manage currencies (add/enable/disable) and edit the public team roster from the Settings page.
-- All configuration/scan data is currently persisted in SQLite (`backend/vericash.db`).
+#### Issues Fixed:
+1. **Header alignment (mobile+desktop)**
+   - `Nav.tsx`: Logo scales 36→48px, text scales, nav items use `whitespace-nowrap` + horizontal scroll, removed `flex-wrap`
+   - `layout.tsx`: Gov-strip compact with `truncate`, hidden system-status link on mobile
+
+2. **Camera "off" box overflow**
+   - `ScanCamera.tsx`: Both dashed frame guide AND idle placeholder use `inset: clamp(8px, 5%, 24px)` so text stays inside border
+   - Corner brackets repositioned with matching `calc()` offsets
+
+3. **Settings scroll barrier → mobile dropdown**
+   - `settings/page.tsx`: Mobile shows a native `<select>` dropdown instead of sidebar; desktop keeps sticky sidebar
+   - Added `ChevronDown` icon import
+
+4. **WhatsApp OG image**
+   - Generated static `og-preview.png` (1200×630) with navy/gold VeriCash branding
+   - Placed in `web/public/og-preview.png`
+   - Changed from dynamic edge-runtime to static file with absolute URL + `?v=2` cache buster
+   - **Note:** WhatsApp caches aggressively — to force refresh, share to a new chat or wait ~24h. Can also use https://developers.facebook.com/tools/debug/ to scrape fresh.
+
+#### Infrastructure Done:
+- ✅ EC2 backend updated and restarted (port 8001)
+- ✅ EC2 web frontend built with correct `NEXT_PUBLIC_API_URL` and restarted
+- ✅ GitHub Actions `deploy-ec2.yml` created — auto-deploys on push to `main`
+- ✅ GitHub Secrets set: `EC2_HOST`, `EC2_SSH_KEY`
+- ✅ EAS project registered: `@rahulgatty1/vericash`
+- ✅ APK auto-built via GitHub Actions and published to Releases
+- ✅ Removed accidentally committed `.pem` file, added `*.pem` to `.gitignore`
+
+#### Commits (chronological):
+```
+dddd496 fix: header alignment, camera box overflow, settings scroll barrier, WhatsApp OG image
+6b51105 ci: add EC2 deploy workflow, fix EAS project ID, add web rebuild to deploy
+190f0f0 security: remove SSH key from repo, add *.pem to gitignore
+47f9228 ci: ensure .env.local is created on EC2 deploy with correct API URL
+baf84bd fix: settings mobile dropdown, absolute OG URLs for WhatsApp cache bust
+```
+
+---
+
+## Key Files & Their Roles
+
+| File | Purpose |
+|------|---------|
+| `backend/app/main.py` | FastAPI entry point, mounts routes |
+| `backend/app/cv_pipeline/pipeline.py` | Orchestrates 7-technique scan |
+| `backend/app/cv_pipeline/ensemble.py` | Weighted scoring + verdict logic |
+| `backend/app/cv_pipeline/colorspace.py` | CIE Lab fingerprint technique |
+| `backend/app/config.py` | Settings (thresholds, DB path, CORS) |
+| `web/app/layout.tsx` | Root layout, OG metadata, nav shell |
+| `web/components/Nav.tsx` | Header + navigation bar |
+| `web/components/ScanCamera.tsx` | Camera capture + frame guide UI |
+| `web/app/settings/page.tsx` | Settings page (8 panels) |
+| `web/app/globals.css` | Design tokens, theme, USWDS-inspired styling |
+| `web/lib/api.ts` | API client (auth, scan, settings) |
+| `mobile/app/index.tsx` | Mobile scanner screen |
+| `mobile/app/settings.tsx` | Mobile settings (server URL config) |
+| `infra/aws_deploy.sh` | First-time EC2 setup script |
+| `infra/deploy-ec2.yml` | GitHub Actions EC2 deploy |
+| `.github/workflows/build-android.yml` | APK build + GitHub Release |
+
+---
+
+## Known Issues & Gotchas
+
+1. **Backend port is 8001, NOT 8000** — both EC2 systemd and local `.env.local` use 8001
+2. **EC2 `.env.local` for web is not in git** — the deploy workflow creates it, but if you deploy manually, you must create it: `echo 'NEXT_PUBLIC_API_URL=https://vericash.duckdns.org' > web/.env.local`
+3. **WhatsApp OG cache** — WhatsApp caches link previews aggressively. Change the `?v=N` param in `layout.tsx` to bust cache
+4. **t2.micro RAM** — Only 1GB RAM; swap is configured (2GB). TensorFlow + EasyOCR can be slow on first request
+5. **EasyOCR cold start** — First scan request after restart takes ~30s to load OCR models
+6. **PowerShell SSH** — `git push` stderr triggers PowerShell error display even on success; check actual output for `main -> main` confirmation
+7. **`.pem` files are gitignored** — Never commit SSH keys; they're stored as GitHub Secrets
+
+---
+
+## Design System
+
+- **Theme:** USWDS-inspired government aesthetic
+- **Colors:** Navy (`#162e51`), Gold (`#ffbc78`), White
+- **Dark mode:** `data-theme="dark"` on `<html>`, CSS custom properties flip
+- **Typography:** Inter (sans), JetBrains Mono (mono)
+- **Components:** `.card`, `.btn`, `.chip`, `.alert`, `.input`, `.switch`, `.gov-hero`, `.gov-strip`
