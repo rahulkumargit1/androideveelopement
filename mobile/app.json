@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.vericash.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "usesCleartextTraffic": true,
       "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
       "adaptiveIcon": {
@@ -44,7 +44,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "https://54.162.220.67.nip.io",
+      "apiUrl": "https://vericash.duckdns.org",
       "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
     }
   }
