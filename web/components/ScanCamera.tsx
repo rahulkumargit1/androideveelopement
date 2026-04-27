@@ -60,10 +60,13 @@ export default function ScanCamera({ onCapture, busy }: Props) {
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md bg-gov-navy-deep">
         <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
 
-        {/* Idle placeholder */}
+        {/* Frame guide — dashed border */}
+        <div className="pointer-events-none absolute rounded-sm border-2 border-dashed border-white/30" style={{ inset: "clamp(8px, 5%, 24px)" }} />
+
+        {/* Idle placeholder — constrained inside the dashed frame */}
         {!active && !busy && (
-          <div className="absolute inset-0 grid place-items-center text-fg-tertiary text-sm">
-            <div className="rounded-md bg-canvas px-4 py-3 border border-token shadow-sm">
+          <div className="absolute grid place-items-center text-fg-tertiary text-sm" style={{ inset: "clamp(8px, 5%, 24px)" }}>
+            <div className="rounded-md bg-canvas px-3 py-2.5 sm:px-4 sm:py-3 border border-token shadow-sm text-center text-xs sm:text-sm max-w-[90%]">
               Camera off — start preview, or upload an image
             </div>
           </div>
@@ -71,9 +74,6 @@ export default function ScanCamera({ onCapture, busy }: Props) {
 
         {/* Scanning overlay */}
         {busy && <ScanningOverlay />}
-
-        {/* Frame guide */}
-        <div className="pointer-events-none absolute inset-6 rounded-sm border-2 border-dashed border-white/30" />
 
         {/* Corner brackets */}
         <CornerBrackets active={!!busy} />
@@ -231,11 +231,13 @@ function CornerBrackets({ active }: { active: boolean }) {
   const color = active ? "rgba(255,188,120,0.85)" : "rgba(255,255,255,0.35)";
   const size = 18;
   const thickness = 2;
-  const corners: { top?: number; bottom?: number; left?: number; right?: number; deg: number }[] = [
-    { top: 12, left: 12,  deg: 0   },
-    { top: 12, right: 12, deg: 90  },
-    { bottom: 12, right: 12, deg: 180 },
-    { bottom: 12, left: 12,  deg: 270 },
+  /* Position brackets just inside the dashed frame guide */
+  const offset = "calc(clamp(8px, 5%, 24px) - 4px)";
+  const corners: { top?: string; bottom?: string; left?: string; right?: string; deg: number }[] = [
+    { top: offset, left: offset,  deg: 0   },
+    { top: offset, right: offset, deg: 90  },
+    { bottom: offset, right: offset, deg: 180 },
+    { bottom: offset, left: offset,  deg: 270 },
   ];
   return (
     <>

@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: [
       {
-        url: "/opengraph-image",
+        url: "/og-preview.png",
         width: 1200,
         height: 630,
         alt: "VeriCash — Fake Currency Detection",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/opengraph-image"],
+    images: ["/og-preview.png"],
     creator: "@vericash",
   },
 
@@ -119,16 +119,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-page text-fg-primary min-h-screen flex flex-col">
         {/* Top "official" strip — mirrors federal-site convention */}
         <div className="gov-strip">
-          <div className="mx-auto max-w-container px-4 sm:px-6 py-1.5 flex items-center gap-3 flex-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <div className="mx-auto max-w-container px-4 sm:px-6 py-1.5 flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs">
+            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
               <path
                 fill="#ffbc78"
                 d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"
               />
             </svg>
-            <span>An academic project · VeriCash · Office of Currency Authentication</span>
-            <span className="opacity-60">·</span>
-            <a href="/status" className="hover:underline">System status</a>
+            <span className="truncate">An academic project · VeriCash · Office of Currency Authentication</span>
+            <span className="opacity-60 hidden sm:inline">·</span>
+            <a href="/status" className="hover:underline hidden sm:inline shrink-0">System status</a>
           </div>
         </div>
 

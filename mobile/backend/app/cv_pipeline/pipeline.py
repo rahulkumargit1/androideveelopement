@@ -47,14 +47,6 @@ def _decode(image_bytes: bytes) -> np.ndarray:
     img = ImageOps.exif_transpose(img).convert("RGB")
     arr = np.array(img)[:, :, ::-1].copy()   # RGB -> BGR
     h, w = arr.shape[:2]
-    # Upscale tiny images (thumbnails from web searches etc.) so CV ops have
-    # enough pixels — Canny, FFT, morphology all need ≥ 200px on the short side.
-    min_side = 300
-    if min(h, w) < min_side:
-        s = min_side / min(h, w)
-        arr = cv2.resize(arr, (int(w * s), int(h * s)), interpolation=cv2.INTER_CUBIC)
-        h, w = arr.shape[:2]
-    # Downscale very large images to keep processing fast
     max_side = 1024
     if max(h, w) > max_side:
         s = max_side / max(h, w)
@@ -108,64 +100,34 @@ def analyze(
     )
 
     if ocr:
-        # OCR may find a denomination but fail to identify the currency
-        # (e.g. digit-scan returns "500" without any currency keyword match).
-        # Fall back to ML's currency in that case — ML's colour classifier is
-        # more reliable for currency identity than denomination-only OCR.
-        out_currency = ocr["currency"] or ml["currency"]
+        out_currency = ocr["currency"]
         ocr_den  = ocr["denomination"]
         ocr_conf = float(ocr.get("ocr_confidence", 0.0))
 
         # ── Cross-validate denomination: ML colour analysis vs OCR text ─────────
         #
-        # Two cases where ML is allowed to override OCR:
-        #
-        # Case 1 — Distinct-colour currencies (INR etc.):
-        #   Each denomination has a unique colour, so Lab-space ML is reliable.
-        #   Override whenever ML is decisive (≥62% conf, ≥18% spread).
-        #
-        # Case 2 — Same-colour currencies (USD, EUR, GBP …) where OCR is uncertain:
-        #   All denominations share the same colour family, so Lab ML is normally
-        #   unreliable.  BUT if OCR confidence is low (< 0.80 → denomination
-        #   appeared only once in the scan — typical of a serial-number fragment
-        #   like "A12345678" yielding a stray "2") AND the TFLite visual classifier
-        #   is very decisive (≥90% conf, ≥35% spread), the ML read is more
-        #   trustworthy than a single spurious OCR hit.
+        # ML Lab-colour override is ONLY allowed for currencies whose denominations
+        # have VISUALLY DISTINCT colours (INR: each denom is a different colour).
+        # For currencies where all denominations share the same colour family,
+        # OCR is always authoritative — ML colour spread is near zero and an
+        # override would silently clobber correct OCR results.
         #
         ml_top    = ml["top_denominations"][0] if ml["top_denominations"] else None
         ml_second = ml["top_denominations"][1] if len(ml["top_denominations"]) > 1 else None
         ml_spread = (ml_top[2] - ml_second[2]) if (ml_top and ml_second) else (ml_top[2] if ml_top else 0.0)
 
-        # OCR confidence < 0.80 means the denomination appeared only once in the
-        # full scan text — high chance it came from a serial number, not the
-        # printed denomination (which normally appears 2-4× on a real note).
-        ocr_uncertain = ocr_conf < 0.80
-
         ml_decisive = (
             ml_top is not None
+            and out_currency not in OCR_ALWAYS_WINS   # ← never override OCR for these
             and ml_top[2]  >= 0.62   # strong absolute confidence
             and ml_spread  >= 0.18   # clearly ahead of second-best denomination
-            and (
-                out_currency not in OCR_ALWAYS_WINS            # Case 1: distinct colours
-                or (                                            # Case 2: same colour, but OCR is weak
-                    ocr_uncertain
-                    and ml_top[2]  >= 0.90   # ML must be very confident
-                    and ml_spread  >= 0.35   # ML must dominate all other denominations
-                )
-                or (                                            # Case 3: ML extremely confident
-                    ml_top[2]  >= 0.95       # near-certain TFLite prediction
-                    and ml_spread  >= 0.50   # dominates all other denominations by half
-                )
-            )
         )
 
         if ml_decisive and ml_top[1] != ocr_den:
             out_denomination = ml_top[1]
-            override_note    = f"ml_override({ml_top[2]:.0%},Δ{ml_spread:.0%},ocr_conf={ocr_conf:.0%})"
+            override_note    = f"ml_override({ml_top[2]:.0%},Δ{ml_spread:.0%})"
         else:
-            # If OCR denomination is None (OCR found currency but no denomination),
-            # fall back to ML's top denomination rather than returning None.
-            out_denomination = ocr_den or (ml_top[1] if ml_top else None)
+            out_denomination = ocr_den
             override_note    = None
 
         ocr_info = {
@@ -177,37 +139,15 @@ def analyze(
         out_currency = ml["currency"]
         # For currencies where all denominations share the same colour (USD, EUR etc.),
         # Lab colour ML cannot reliably distinguish denominations.
-        # HOWEVER, the per-currency TFLite models (usd_mobilenet, eur_mobilenet, etc.)
-        # ARE denomination-specific and reliable.  Use them when confident; otherwise
-        # show "unknown" to avoid a confidently-wrong Lab guess.
+        # Show "unknown" rather than a confidently-wrong Lab guess.
         if out_currency in OCR_ALWAYS_WINS:
-            ml_den_conf = float(ml.get("denom_confidence") or 0.0)
-            ml_den = ml.get("denomination") or ""
-            if ml_den_conf >= 0.55 and ml_den not in ("", "Unknown", "unknown"):
-                out_denomination = ml_den
-            else:
-                out_denomination = "unknown"
+            out_denomination = "unknown"
         else:
             out_denomination = ml["denomination"]
         ocr_info = None
 
     # ── Step 3: Retrieve matched NoteProfile ──────────────────────────────────
     matched_profile = _find_matched_profile(out_currency, out_denomination)
-
-    # ── Step 3b: Cache Lab values for consistency ─────────────────────────────
-    # lab_summary() is expensive (white-balance, note boundary detection,
-    # k-means clustering) and non-trivially sensitive to floating-point
-    # differences in the contour detection step.  Previously it was called
-    # 3× per scan (classify, profile_match, color_consistency) — each call
-    # could produce slightly different Lab values, causing random score
-    # fluctuations.  Now we compute ONCE and pass everywhere.
-    _cached_lab_dict = ml["lab"]
-    _cached_lab = (
-        float(_cached_lab_dict["L"]),
-        float(_cached_lab_dict["a"]),
-        float(_cached_lab_dict["b"]),
-        float(_cached_lab_dict["chroma"]),
-    )
 
     # ── Step 4: Profile-relative sub-scores ───────────────────────────────────
     # Each score now answers: "does this image look like a genuine
@@ -217,15 +157,13 @@ def analyze(
     scores: dict[str, float] = {}
 
     # profile_match: Lab colour distance to the matched denomination profile
-    # Uses cached Lab values for consistency with identification step
     scores["profile_match"] = colorspace.profile_match_score(
-        img, matched_profile=matched_profile, precomputed_lab=_cached_lab
+        img, matched_profile=matched_profile
     )
 
     # color_consistency: chroma within the expected range for this denomination
-    # Uses cached Lab values for consistency with identification step
     scores["color_consistency"] = colorspace.color_consistency_score(
-        img, matched_profile=matched_profile, precomputed_lab=_cached_lab
+        img, matched_profile=matched_profile
     )
 
     # texture_detail: Laplacian variance in genuine-print band (Technique 3)
@@ -246,12 +184,8 @@ def analyze(
     # exposure_valid: quality gate only — does NOT affect authenticity
     scores["exposure_valid"] = enhancement.exposure_score(img)
 
-    # ml_confidence is the TFLite MobileNet's confidence in the predicted
-    # denomination. It is lighting-invariant (the network was trained on
-    # varied images), so it stabilises the ensemble against the more
-    # lighting-sensitive Lab profile_match signal.
+    # ml_confidence kept in breakdown for reference but NOT in ensemble
     ml_confidence = float(ml["ml_confidence"])
-    scores["ml_confidence"] = ml_confidence
 
     # ── Step 5: Ensemble → final score → verdict ──────────────────────────────
     final = ensemble.combine(scores)
@@ -311,15 +245,6 @@ def analyze(
             "chroma_min":  matched_profile.chroma_min,
             "chroma_max":  matched_profile.chroma_max,
         }
-
-    # ── Final safety net: never return None for currency/denomination ────────
-    # OCR may identify a denomination without a currency, and the visual classifier
-    # may fail entirely on non-currency images.  ScanResult requires strings, so
-    # surface "Unknown" to the user instead of crashing the request with a 500.
-    if not out_currency:
-        out_currency = "Unknown"
-    if not out_denomination:
-        out_denomination = "unknown"
 
     # ── Demonetization check ──────────────────────────────────────────────────
     is_demonetized = out_denomination in DEMONETIZED.get(out_currency, set())

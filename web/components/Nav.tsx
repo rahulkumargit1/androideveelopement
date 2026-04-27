@@ -64,18 +64,18 @@ export default function Nav() {
 
   return (
     <header className="bg-canvas border-b border-token">
-      <div className="mx-auto max-w-container px-4 sm:px-6 py-4 flex items-center gap-6 justify-between flex-wrap">
+      <div className="mx-auto max-w-container px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-6 justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 no-underline" aria-label="VeriCash home">
-          <SealMark className="h-12 w-12" />
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 no-underline shrink-0" aria-label="VeriCash home">
+          <SealMark className="h-9 w-9 sm:h-12 sm:w-12" />
           <div className="leading-tight">
-            <div className="t-display text-xl text-fg-primary">VeriCash</div>
-            <div className="text-xs text-fg-secondary">Office of Currency Authentication</div>
+            <div className="t-display text-base sm:text-xl text-fg-primary">VeriCash</div>
+            <div className="text-[10px] sm:text-xs text-fg-secondary">Office of Currency Authentication</div>
           </div>
         </Link>
 
         {/* Right side: user info + theme */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {me ? (
             <div className="hidden md:flex items-center gap-2 mr-2">
               <span className="text-sm text-fg-secondary truncate max-w-[160px]">{me.full_name}</span>
@@ -104,8 +104,8 @@ export default function Nav() {
       </div>
 
       {/* Nav bar */}
-      <nav className="bg-strip text-white" aria-label="Primary navigation">
-        <div className="mx-auto max-w-container px-4 sm:px-6 flex flex-wrap">
+      <nav className="bg-strip text-white overflow-x-auto" aria-label="Primary navigation">
+        <div className="mx-auto max-w-container px-4 sm:px-6 flex">
           {visibleLinks.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname?.startsWith(href);
             return (
@@ -114,13 +114,13 @@ export default function Nav() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={clsx(
-                  "inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold no-underline border-b-4 transition-colors duration-quick ease-std",
+                  "inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold no-underline border-b-4 transition-colors duration-quick ease-std whitespace-nowrap",
                   active
                     ? "border-gov-gold bg-white/5 text-white"
                     : "border-transparent text-white/85 hover:bg-white/5 hover:text-white"
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {label}
               </Link>
             );
@@ -128,9 +128,9 @@ export default function Nav() {
 
           {/* Viewer badge in nav */}
           {isViewer && (
-            <div className="ml-auto flex items-center px-4 py-3 gap-1.5 text-xs text-white/60">
+            <div className="ml-auto flex items-center px-4 py-3 gap-1.5 text-xs text-white/60 whitespace-nowrap">
               <Eye className="h-3.5 w-3.5" />
-              Read-only access
+              Read-only
             </div>
           )}
         </div>

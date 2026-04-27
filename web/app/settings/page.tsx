@@ -101,20 +101,20 @@ function SettingsInner() {
 
       <div className="mx-auto max-w-container px-4 sm:px-6 py-8 grid md:grid-cols-[220px_1fr] gap-6">
         {/* ── Sidebar ────────────────────────────────────────────────── */}
-        <aside className="card !p-2 h-fit sticky top-4">
+        <aside className="card !p-2 h-fit md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
           <nav aria-label="Settings navigation">
-            <ul className="space-y-0.5">
+            <ul className="flex md:flex-col gap-0.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
               {SECTIONS.map((s) => {
                 const m = SECTION_META[s];
                 const SIcon = m.icon;
                 const locked = m.adminOnly && !isAdmin;
                 const active = s === section;
                 return (
-                  <li key={s}>
+                  <li key={s} className="shrink-0 md:shrink">
                     <button
                       onClick={() => setSection(s)}
                       className={clsx(
-                        "w-full text-left rounded-md px-3 h-10 text-sm transition-colors flex items-center gap-2.5",
+                        "w-full text-left rounded-md px-3 h-10 text-sm transition-colors flex items-center gap-2.5 whitespace-nowrap",
                         active
                           ? "bg-gov-navy text-white"
                           : "text-fg-secondary hover:bg-sunken hover:text-fg-primary"
@@ -129,7 +129,7 @@ function SettingsInner() {
               })}
             </ul>
           </nav>
-          <div className="border-t border-token mt-2 pt-2 px-3 py-2 text-xs text-fg-tertiary">
+          <div className="border-t border-token mt-2 pt-2 px-3 py-2 text-xs text-fg-tertiary hidden md:block">
             {meLoaded && me ? (
               <div>
                 <div className="font-semibold text-fg-primary truncate">{me.full_name}</div>

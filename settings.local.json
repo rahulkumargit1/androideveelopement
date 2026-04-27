@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python --version)",
+      "PowerShell(pip --version)",
+      "PowerShell(Start-Process powershell -Verb RunAs -ArgumentList \"-NoProfile -Command `\"wsl --install -d Ubuntu`\"\" -Wait 2>&1)",
+      "PowerShell(wsl -d Ubuntu -- bash -c \"sudo apt-get update -y && sudo apt-get install -y wget\" 2>&1)",
+      "PowerShell(cd \"B:\\\\fakecurrencydetectionrahul\"; $env:TF_ENABLE_ONEDNN_OPTS=0; $env:TF_CPP_MIN_LOG_LEVEL=3; python train_usd_standalone.py 2>&1)"
+    ]
+  }
+}

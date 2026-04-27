@@ -410,38 +410,16 @@ def _central_crop(img: np.ndarray, frac: float = 0.60) -> np.ndarray:
 
 # ── Colour summary ─────────────────────────────────────────────────────────────
 
-def _gray_world_wb(img_bgr: np.ndarray) -> np.ndarray:
-    """Gray-world white balance: scale each BGR channel so means match.
-
-    Neutralises lighting cast (yellow indoor light, blue cool-white LED, etc.)
-    so the Lab measurement reflects the note's true colour, not the room's
-    lighting. Without this, the same note photographed under different lights
-    produces wildly different Lab values, causing profile_match to flip-flop.
-    """
-    means = img_bgr.reshape(-1, 3).mean(axis=0)
-    target = float(means.mean())
-    # Avoid divide-by-zero for very dark channels
-    scale = target / np.clip(means, 1.0, None)
-    # Cap correction at 1.5× to avoid hyper-saturating images already balanced
-    scale = np.clip(scale, 0.7, 1.5)
-    out = img_bgr.astype(np.float32) * scale
-    return np.clip(out, 0, 255).astype(np.uint8)
-
-
 def lab_summary(img_bgr: np.ndarray) -> tuple[float, float, float, float]:
     """Return (L*, a*, b*, chroma) of the dominant chromatic cluster.
 
     Improvements over v1:
-    * Gray-world white balance neutralises lighting cast before measurement.
     * Note-boundary detection removes white table margins before sampling.
     * Adaptive chroma threshold (tries 10, falls back to 4).
     * k=5 clusters (was 3) for finer colour resolution.
     * Cluster scoring: sqrt(pop) × chroma^1.5 strongly prefers coloured
       clusters over large neutral (white/grey) ones.
     """
-    # Step 0: white-balance to neutralise lighting cast
-    img_bgr = _gray_world_wb(img_bgr)
-
     # Step 1: isolate the note
     _bounds = _find_note_bounds(img_bgr)
     crop = _bounds if _bounds is not None else _central_crop(img_bgr, 0.60)
@@ -622,7 +600,6 @@ def classify(
 def profile_match_score(
     img_bgr: np.ndarray,
     matched_profile: NoteProfile | None = None,
-    precomputed_lab: tuple[float, float, float, float] | None = None,
 ) -> float:
     """Map Lab distance from measured colour to the matched profile → 0..1.
 
@@ -634,40 +611,31 @@ def profile_match_score(
     Distance 10  → 0.85 (minor lighting variation — still likely genuine)
     Distance 20  → 0.55 (substantial deviation — suspicious)
     Distance 30+ → 0.0  (completely wrong colour — likely counterfeit)
-
-    NOTE: when matched_profile is None (denomination unknown) we return 0.5
-    neutral rather than doing a secondary classify() which could pick a
-    different denomination than what the pipeline reported.
-
-    If precomputed_lab is given as (L, a, b, chroma), skip lab_summary()
-    to ensure consistency with the identification step.
     """
+    L, a, b, chroma = lab_summary(img_bgr)
+
     if matched_profile is None:
-        return 0.5  # denomination unknown — neutral, do not re-classify
+        # Fall back to best-match across all profiles
+        result = classify(img_bgr)
+        # Extract the matched profile
+        hint_cur = result["currency"]
+        hint_den = result["denomination"]
+        matched_profile = next(
+            (p for p in PROFILES
+             if p.currency == hint_cur and p.denomination == hint_den),
+            None,
+        )
+        if matched_profile is None:
+            return 0.5  # cannot find profile — neutral
 
-    if precomputed_lab is not None:
-        L, a, b, chroma = precomputed_lab
-    else:
-        L, a, b, chroma = lab_summary(img_bgr)
     dist = _profile_distance(L, a, b, chroma, matched_profile)
-
-    # Piecewise linear decay matching the documented anchor points:
-    #   dist ≤ 10  → gentle slope (lighting/camera variation expected)
-    #   dist 10-20 → steeper slope (substantial colour deviation)
-    #   dist 20-30 → sharp drop to 0 (clearly wrong colour)
-    if dist <= 10.0:
-        score = 1.0 - dist * 0.015          # 0→1.0, 10→0.85
-    elif dist <= 20.0:
-        score = 0.85 - (dist - 10.0) * 0.030  # 10→0.85, 20→0.55
-    else:
-        score = 0.55 - (dist - 20.0) * 0.055  # 20→0.55, 30→0.0
-    return float(max(0.0, min(1.0, score)))
+    # Map [0, 30] → [1.0, 0.0] with smooth decay
+    return float(max(0.0, min(1.0, 1.0 - dist / 30.0)))
 
 
 def color_consistency_score(
     img_bgr: np.ndarray,
     matched_profile: NoteProfile | None = None,
-    precomputed_lab: tuple[float, float, float, float] | None = None,
 ) -> float:
     """Check that the note's chroma falls within the expected range for the
     matched denomination profile.
@@ -677,18 +645,20 @@ def color_consistency_score(
     A note whose chroma is wildly outside the expected range is suspicious.
 
     Returns 1.0 when chroma is within the expected range, lower otherwise.
-    When matched_profile is None (denomination unknown) returns 0.5 neutral.
-
-    If precomputed_lab is given as (L, a, b, chroma), skip lab_summary()
-    to ensure consistency with the identification step.
     """
-    if matched_profile is None:
-        return 0.5  # denomination unknown — neutral, do not re-classify
+    _, _, _, chroma = lab_summary(img_bgr)
 
-    if precomputed_lab is not None:
-        _, _, _, chroma = precomputed_lab
-    else:
-        _, _, _, chroma = lab_summary(img_bgr)
+    if matched_profile is None:
+        result = classify(img_bgr)
+        hint_cur = result["currency"]
+        hint_den = result["denomination"]
+        matched_profile = next(
+            (p for p in PROFILES
+             if p.currency == hint_cur and p.denomination == hint_den),
+            None,
+        )
+        if matched_profile is None:
+            return 0.5
 
     p = matched_profile
     if chroma < p.chroma_min:

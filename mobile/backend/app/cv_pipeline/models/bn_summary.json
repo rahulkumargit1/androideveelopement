@@ -1,0 +1,26 @@
+{
+  "currencies": [
+    "AUD",
+    "BRL",
+    "CAD",
+    "EUR",
+    "GBP",
+    "IDR",
+    "INR",
+    "JPY",
+    "MXN",
+    "MYR",
+    "NNR",
+    "NZD",
+    "PHP",
+    "PKR",
+    "SGD",
+    "TRY",
+    "USD"
+  ],
+  "currency_accuracy": 0.9678,
+  "denomination_accuracy": 0.9237,
+  "n_samples": 24826,
+  "n_features": 256,
+  "source": "microsoft/banknote-net"
+}

@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     max_upload_mb: int = 10
 
-    # Detection thresholds (calibrated for ML-anchored ensemble v3)
-    authentic_threshold: float = 0.55
-    suspicious_threshold: float = 0.35
+    # Detection thresholds (calibrated for phone-camera captures)
+    authentic_threshold: float = 0.60
+    suspicious_threshold: float = 0.38
 
     cors_origins: str = "*"
 
