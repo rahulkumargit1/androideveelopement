@@ -50,10 +50,11 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: [
       {
-        url: "/og-image.svg",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
         alt: "VeriCash — Fake Currency Detection",
+        type: "image/png",
       },
     ],
     locale: "en_US",
@@ -64,7 +65,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/og-image.svg"],
+    images: ["/opengraph-image"],
     creator: "@vericash",
   },
 
