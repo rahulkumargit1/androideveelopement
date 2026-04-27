@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#162e51"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vericash.app",
@@ -26,7 +28,11 @@
       "package": "com.vericash.app",
       "versionCode": 5,
       "usesCleartextTraffic": true,
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#162e51"
@@ -36,16 +42,26 @@
       "expo-router",
       [
         "expo-camera",
-        { "cameraPermission": "VeriCash needs camera access to scan banknotes." }
+        {
+          "cameraPermission": "VeriCash needs camera access to scan banknotes."
+        }
       ],
       [
         "expo-image-picker",
-        { "photosPermission": "VeriCash needs photo access to upload banknote images." }
+        {
+          "photosPermission": "VeriCash needs photo access to upload banknote images."
+        }
       ]
     ],
     "extra": {
       "apiUrl": "https://vericash.duckdns.org",
-      "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
-    }
+      "eas": {
+        "projectId": "b3fdb32c-e631-487c-9493-29a723a4d49c"
+      },
+      "router": {
+        "origin": false
+      }
+    },
+    "owner": "rahulgatty1"
   }
 }

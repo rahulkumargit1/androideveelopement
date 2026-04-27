@@ -140,6 +140,6 @@ jobs:
             2. Enable **Install unknown apps** in Android settings
             3. Open the APK and install
             4. Open VeriCash → Settings → enter your server URL
-               - AWS backend: `https://54.162.220.67.nip.io`
+               - AWS backend: `https://vericash.duckdns.org`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

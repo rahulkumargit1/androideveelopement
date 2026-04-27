@@ -1,0 +1,67 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "web/**"
+      - ".github/workflows/deploy-ec2.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          timeout: 120s
+          script: |
+            echo "=== VeriCash EC2 Deploy ==="
+            cd /home/ubuntu/FAKECURRENCYDETECTION
+
+            # Pull latest code
+            echo "[1/4] Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Update Python dependencies if requirements changed
+            echo "[2/4] Updating backend dependencies..."
+            cd /home/ubuntu/FAKECURRENCYDETECTION/backend
+            source .venv/bin/activate
+            pip install -r requirements.txt -q 2>/dev/null
+            deactivate
+
+            # Rebuild web frontend
+            echo "[3/4] Rebuilding web frontend..."
+            cd /home/ubuntu/FAKECURRENCYDETECTION/web
+            npm install --legacy-peer-deps --no-audit --no-fund 2>/dev/null
+            npm run build
+
+            # Restart services
+            echo "[4/4] Restarting services..."
+            sudo systemctl restart vericash
+            sudo systemctl restart vericash-web
+            sleep 3
+
+            # Verify
+            API_STATUS=$(sudo systemctl is-active vericash)
+            WEB_STATUS=$(sudo systemctl is-active vericash-web)
+            echo "Backend: $API_STATUS | Web: $WEB_STATUS"
+            if [ "$API_STATUS" = "active" ] && [ "$WEB_STATUS" = "active" ]; then
+              echo "✅ VeriCash fully deployed!"
+              curl -sf http://localhost:8001/health || echo "⚠ API health pending..."
+              curl -sf -o /dev/null http://localhost:3000 && echo "✅ Web responding" || echo "⚠ Web pending..."
+            else
+              echo "❌ Something failed!"
+              sudo journalctl -u vericash --no-pager -n 10
+              sudo journalctl -u vericash-web --no-pager -n 10
+              exit 1
+            fi
