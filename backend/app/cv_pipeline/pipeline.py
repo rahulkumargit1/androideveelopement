@@ -152,6 +152,10 @@ def analyze(
                     and ml_top[2]  >= 0.90   # ML must be very confident
                     and ml_spread  >= 0.35   # ML must dominate all other denominations
                 )
+                or (                                            # Case 3: ML extremely confident
+                    ml_top[2]  >= 0.95       # near-certain TFLite prediction
+                    and ml_spread  >= 0.50   # dominates all other denominations by half
+                )
             )
         )
 

@@ -13,7 +13,7 @@
  */
 
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Share, Linking, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ScanResult } from "../api/client";
 
@@ -245,7 +245,10 @@ export default function ResultCard({ r }: { r: ScanResult }) {
           </View>
         )}
 
-        {/* ── 8. Footer note ───────────────────────────────────── */}
+        {/* ── 8. Share buttons ─────────────────────────────────── */}
+        <ShareRow r={r} />
+
+        {/* ── 9. Footer note ───────────────────────────────────── */}
         <Text style={s.footerNote}>
           Verdict combines weighted image-quality scores with the colour-fingerprint
           classifier; thresholds are configurable in Settings.
@@ -254,6 +257,88 @@ export default function ResultCard({ r }: { r: ScanResult }) {
     </View>
   );
 }
+
+/* ── ShareRow ────────────────────────────────────────────────────── */
+function buildShareText(r: ScanResult): string {
+  const verdictEmoji =
+    r.verdict === "authentic" ? "✅" : r.verdict === "suspicious" ? "⚠️" : "❌";
+  const pct = Math.round((r.authenticity_score || 0) * 100);
+  const lines = [
+    `${verdictEmoji} *VeriCash Currency Scan*`,
+    ``,
+    `*Verdict:* ${r.verdict.toUpperCase()}`,
+    `*Currency:* ${r.currency}${r.denomination && r.denomination !== "unknown" ? ` ${r.denomination}` : ""}`,
+    `*Authenticity:* ${pct}%`,
+    r.demonetized ? `⚠️ This denomination has been demonetized.` : "",
+    ``,
+    `_Scanned with VeriCash — https://vericash.duckdns.org_`,
+  ];
+  return lines.filter(Boolean).join("\n");
+}
+
+function ShareRow({ r }: { r: ScanResult }) {
+  const text = buildShareText(r);
+
+  async function shareWhatsApp() {
+    const encoded = encodeURIComponent(text);
+    const url = `whatsapp://send?text=${encoded}`;
+    const can = await Linking.canOpenURL(url);
+    if (can) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("WhatsApp not found", "Please install WhatsApp to share via it.");
+    }
+  }
+
+  async function shareGeneric() {
+    try {
+      await Share.share({ message: text, title: "VeriCash Scan Result" });
+    } catch (e: any) {
+      if (e.message !== "The user did not share") Alert.alert("Share failed", e.message);
+    }
+  }
+
+  return (
+    <View style={sh.row}>
+      <TouchableOpacity style={sh.btnWa} onPress={shareWhatsApp} activeOpacity={0.8}>
+        <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+        <Text style={sh.btnWaText}>Share on WhatsApp</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={sh.btnMore} onPress={shareGeneric} activeOpacity={0.8}>
+        <Ionicons name="share-social-outline" size={16} color="#162e51" />
+        <Text style={sh.btnMoreText}>More</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const sh = StyleSheet.create({
+  row: { flexDirection: "row", gap: 8 },
+  btnWa: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: 40,
+    backgroundColor: "#25D366",
+    borderRadius: 3,
+  },
+  btnWaText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  btnMore: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#162e51",
+    borderRadius: 3,
+    backgroundColor: "#fff",
+  },
+  btnMoreText: { color: "#162e51", fontWeight: "600", fontSize: 13 },
+});
 
 /* ── ScoreBar ────────────────────────────────────────────────────── */
 function ScoreBar({
