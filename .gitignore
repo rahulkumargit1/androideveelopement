@@ -78,3 +78,6 @@ FRIEND_PC_PROMPT.txt
 
 # OS
 .DS_Store
+
+*.pem
+infra/vericash.pem
