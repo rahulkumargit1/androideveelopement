@@ -13,7 +13,7 @@ import {
   Save, Trash2, Plus, LogIn, LogOut, KeyRound, X,
   ShieldAlert, ShieldCheck, Building2, Palette, Info,
   FlaskConical, Coins, Upload, Users, Lock, Pencil,
-  RefreshCw, Eye, EyeOff, UserPlus, RotateCcw,
+  RefreshCw, Eye, EyeOff, UserPlus, RotateCcw, ChevronDown,
 } from "lucide-react";
 import ResultCard from "@/components/ResultCard";
 import clsx from "clsx";
@@ -100,21 +100,45 @@ function SettingsInner() {
       </section>
 
       <div className="mx-auto max-w-container px-4 sm:px-6 py-8 grid md:grid-cols-[220px_1fr] gap-6">
-        {/* ── Sidebar ────────────────────────────────────────────────── */}
-        <aside className="card !p-2 h-fit md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
+        {/* ── Mobile: dropdown selector ─────────────────────────────── */}
+        <div className="md:hidden">
+          <label className="label" htmlFor="settings-section-select">Section</label>
+          <div className="relative">
+            <select
+              id="settings-section-select"
+              className="input w-full appearance-none pr-10"
+              value={section}
+              onChange={(e) => setSection(e.target.value as Section)}
+            >
+              {SECTIONS.map((s) => {
+                const m = SECTION_META[s];
+                const locked = m.adminOnly && !isAdmin;
+                return (
+                  <option key={s} value={s} disabled={locked}>
+                    {m.label}{locked ? " 🔒" : ""}
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-tertiary pointer-events-none" />
+          </div>
+        </div>
+
+        {/* ── Desktop: sticky sidebar ───────────────────────────────── */}
+        <aside className="card !p-2 h-fit sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto hidden md:block">
           <nav aria-label="Settings navigation">
-            <ul className="flex md:flex-col gap-0.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+            <ul className="space-y-0.5">
               {SECTIONS.map((s) => {
                 const m = SECTION_META[s];
                 const SIcon = m.icon;
                 const locked = m.adminOnly && !isAdmin;
                 const active = s === section;
                 return (
-                  <li key={s} className="shrink-0 md:shrink">
+                  <li key={s}>
                     <button
                       onClick={() => setSection(s)}
                       className={clsx(
-                        "w-full text-left rounded-md px-3 h-10 text-sm transition-colors flex items-center gap-2.5 whitespace-nowrap",
+                        "w-full text-left rounded-md px-3 h-10 text-sm transition-colors flex items-center gap-2.5",
                         active
                           ? "bg-gov-navy text-white"
                           : "text-fg-secondary hover:bg-sunken hover:text-fg-primary"
@@ -129,7 +153,7 @@ function SettingsInner() {
               })}
             </ul>
           </nav>
-          <div className="border-t border-token mt-2 pt-2 px-3 py-2 text-xs text-fg-tertiary hidden md:block">
+          <div className="border-t border-token mt-2 pt-2 px-3 py-2 text-xs text-fg-tertiary">
             {meLoaded && me ? (
               <div>
                 <div className="font-semibold text-fg-primary truncate">{me.full_name}</div>
