@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  ScanLine, History, Building2, Settings, Activity,
+  ScanLine, History, Building2, Settings,
   Sun, Moon, LogIn, LogOut, Eye,
 } from "lucide-react";
 import clsx from "clsx";
@@ -20,7 +20,6 @@ const ALL_LINKS = [
   { href: "/history",  label: "History",        icon: History,    viewerHidden: false },
   { href: "/members",  label: "Administration", icon: Building2,  viewerHidden: false },
   { href: "/settings", label: "Settings",       icon: Settings,   viewerHidden: false },
-  { href: "/status",   label: "Status",         icon: Activity,   viewerHidden: false },
 ];
 
 const ROLE_STYLE: Record<string, string> = {

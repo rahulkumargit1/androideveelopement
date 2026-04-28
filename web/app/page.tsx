@@ -130,7 +130,7 @@ export default function Home() {
             <span className="chip chip-brand"><ShieldCheck className="h-3 w-3" /> Same backend serves web + APK</span>
             <span className="chip">7 techniques</span>
             <span className="chip">CIE Lab fingerprints</span>
-            <span className="chip chip-gold">Heuristic v3 · k-means dominant</span>
+            <span className="chip chip-gold">Heuristic v4 · ML-anchored</span>
           </div>
         </div>
       </section>
