@@ -98,7 +98,27 @@ def histogram_profile_score(img_bgr: np.ndarray) -> float:
     # Genuine notes scanned/photographed: very few zero bins in mid-range
     banding_score = float(max(0.0, 1.0 - zero_bins / 60.0))
 
-    return float(min(1.0, 0.45 * peak_score + 0.35 * range_score + 0.20 * banding_score))
+    # ── Channel diversity score ───────────────────────────────────────────────
+    # Genuine banknotes use multiple coloured inks (blue, red, green, metallic).
+    # Each BGR channel should have a different peak structure.  Photocopies
+    # and laser prints often have very similar histograms across all channels.
+    channel_peaks = []
+    for ch in range(3):
+        ch_hist = cv2.calcHist([img_bgr], [ch], None, [256], [0, 256]).flatten()
+        ch_norm = ch_hist / (ch_hist.sum() + 1e-9)
+        ch_smooth = np.convolve(ch_norm, kernel, mode="same")
+        channel_peaks.append(_count_peaks(ch_smooth))
+
+    # Genuine: channels have different numbers of peaks (diversity)
+    peak_variance = float(np.var(channel_peaks))
+    if peak_variance >= 1.0:
+        diversity_score = 1.0   # channels have different structure = genuine
+    elif peak_variance >= 0.3:
+        diversity_score = float(0.5 + (peak_variance - 0.3) / 0.7 * 0.5)
+    else:
+        diversity_score = 0.4   # all channels identical = likely photocopy
+
+    return float(min(1.0, 0.35 * peak_score + 0.25 * range_score + 0.20 * banding_score + 0.20 * diversity_score))
 
 
 # Keep backward-compat name used by old pipeline

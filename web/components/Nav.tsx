@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  ScanLine, History, Building2, Settings,
+  ScanLine, History, Building2, Settings, Activity,
   Sun, Moon, LogIn, LogOut, Eye,
 } from "lucide-react";
 import clsx from "clsx";
@@ -20,6 +20,7 @@ const ALL_LINKS = [
   { href: "/history",  label: "History",        icon: History,    viewerHidden: false },
   { href: "/members",  label: "Administration", icon: Building2,  viewerHidden: false },
   { href: "/settings", label: "Settings",       icon: Settings,   viewerHidden: false },
+  { href: "/status",   label: "Status",         icon: Activity,   viewerHidden: false },
 ];
 
 const ROLE_STYLE: Record<string, string> = {
@@ -90,6 +91,24 @@ export default function Nav() {
           ) : (
             <Link href="/settings" className="btn btn-secondary btn-sm hidden sm:inline-flex">
               <LogIn className="h-4 w-4" /> Sign in
+            </Link>
+          )}
+          {/* Mobile: show user initial or sign-in */}
+          {me ? (
+            <button
+              className="btn btn-ghost btn-sm md:hidden flex items-center gap-1"
+              onClick={signOut}
+              aria-label="Sign out"
+            >
+              <span className="h-5 w-5 rounded-full text-[10px] font-bold grid place-items-center text-white"
+                    style={{ background: "var(--gov-navy)" }}>
+                {me.full_name?.charAt(0)?.toUpperCase() || "U"}
+              </span>
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <Link href="/settings" className="btn btn-ghost btn-sm sm:hidden">
+              <LogIn className="h-4 w-4" />
             </Link>
           )}
           <button

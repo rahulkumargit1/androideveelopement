@@ -82,8 +82,8 @@ OCR_ALWAYS_WINS: set[str] = {
 
 def analyze(
     image_bytes: bytes,
-    authentic_thr: float = 0.75,
-    suspicious_thr: float = 0.5,
+    authentic_thr: float = 0.78,
+    suspicious_thr: float = 0.45,
     enabled_currencies: Iterable[str] | None = None,
     currency_hint: str | None = None,
 ) -> dict:
@@ -269,6 +269,23 @@ def analyze(
         else "poor"
     )
 
+    # ── Step 6b: Agreement bonus ──────────────────────────────────────────────
+    # When ML confidence AND profile_match both strongly agree the note is
+    # genuine, boost the final score slightly.  This rewards consistency
+    # across independent signals.
+    if ml_confidence >= 0.80 and scores["profile_match"] >= 0.80:
+        agreement_bonus = 0.03
+        final = min(1.0, final + agreement_bonus)
+        v = ensemble.verdict(final, authentic_thr, suspicious_thr)
+
+    # ── Step 6c: Poor scan quality warning ────────────────────────────────────
+    # If scan quality is poor, reduce confidence to signal unreliability
+    # but don't change the verdict — let the user know results may be less
+    # reliable.
+    reported_confidence = max(ml_confidence, final)
+    if scan_quality_label == "poor":
+        reported_confidence = min(reported_confidence, 0.65)
+
     # ── Step 7: Comparison-of-techniques breakdown (PBL bonus) ───────────────
     comparison = {
         "raw":   round(spatial.texture_detail_score(img),                        4),
@@ -328,7 +345,7 @@ def analyze(
         "currency":           out_currency,
         "denomination":       out_denomination,
         "authenticity_score": round(final, 4),
-        "confidence":         round(max(ml_confidence, final), 4),
+        "confidence":         round(reported_confidence, 4),
         "verdict":            v,
         "demonetized":        is_demonetized,
         "breakdown":          breakdown,

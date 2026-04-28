@@ -127,8 +127,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               />
             </svg>
             <span className="truncate">An academic project · VeriCash · Office of Currency Authentication</span>
-            <span className="opacity-60 hidden sm:inline">·</span>
-            <a href="/status" className="hover:underline hidden sm:inline shrink-0">System status</a>
+            <span className="opacity-60">·</span>
+            <a href="/status" className="hover:underline shrink-0 inline-flex items-center gap-1">
+              <span className="status-dot" aria-hidden="true" />
+              System status
+            </a>
           </div>
         </div>
 

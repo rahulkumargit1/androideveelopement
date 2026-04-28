@@ -392,12 +392,28 @@ def predict(
         except Exception:
             pass
 
+    # ml_confidence: blend denomination and currency signals.
+    # When a TFLite model ran, den_conf comes from a trained visual
+    # classifier — more trustworthy than the Lab heuristic for currency.
+    # Weight denomination confidence more heavily in that case.
+    has_tflite = any([
+        currency == "USD" and _usd_interp is not None,
+        currency == "EUR" and _eur_interp is not None,
+        currency == "INR" and _inr_interp is not None,
+    ])
+    if has_tflite:
+        # TFLite ran → denomination confidence is high-quality
+        blended_conf = 0.70 * den_conf + 0.30 * cur_conf
+    else:
+        # Lab only → both signals are heuristic quality
+        blended_conf = 0.50 * den_conf + 0.50 * cur_conf
+
     return {
         "currency":            currency,
         "denomination":        denomination,
         "currency_confidence": cur_conf,
         "denom_confidence":    den_conf,
-        "ml_confidence":       float(0.6 * den_conf + 0.4 * cur_conf),
+        "ml_confidence":       float(blended_conf),
         "top_currencies":      top_curs,
         "top_denominations":   top_dens,
         "lab":                 r["lab"],

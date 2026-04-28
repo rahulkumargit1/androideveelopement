@@ -27,13 +27,29 @@ _THREAD_MAX_WIDTH_PX = 18
 
 
 def security_thread_mask(img_bgr: np.ndarray) -> np.ndarray:
-    """Approximate the dark continuous vertical thread on banknotes."""
+    """Approximate security threads on banknotes — dark OR bright vertical strips.
+
+    Uses both Otsu (dark threads) and a bright-strip approach (metallic/holographic
+    threads) and returns whichever produces a stronger vertical structure.
+    """
     g = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-    _, thr = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Approach 1: Dark threads (traditional Otsu inversion)
+    _, thr_dark = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     kernel_v = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 25))
-    opened = cv2.morphologyEx(thr, cv2.MORPH_OPEN, kernel_v)
-    closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
-    return closed
+    mask_dark = cv2.morphologyEx(thr_dark, cv2.MORPH_OPEN, kernel_v)
+    mask_dark = cv2.morphologyEx(mask_dark, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+
+    # Approach 2: Bright/metallic threads (above 85th percentile brightness)
+    bright_thr = int(np.percentile(g, 85))
+    _, thr_bright = cv2.threshold(g, bright_thr, 255, cv2.THRESH_BINARY)
+    mask_bright = cv2.morphologyEx(thr_bright, cv2.MORPH_OPEN, kernel_v)
+    mask_bright = cv2.morphologyEx(mask_bright, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+
+    # Return whichever has more vertical structure (higher column sum max)
+    dark_strength = float(mask_dark.sum(axis=0).max()) if mask_dark.any() else 0
+    bright_strength = float(mask_bright.sum(axis=0).max()) if mask_bright.any() else 0
+    return mask_bright if bright_strength > dark_strength else mask_dark
 
 
 def _column_run(col: np.ndarray) -> int:
