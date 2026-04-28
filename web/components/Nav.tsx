@@ -75,41 +75,46 @@ export default function Nav() {
         </Link>
 
         {/* Right side: user info + theme */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {me ? (
-            <div className="hidden md:flex items-center gap-2 mr-2">
-              <span className="text-sm text-fg-secondary truncate max-w-[160px]">{me.full_name}</span>
-              <span className={ROLE_STYLE[me.role] ?? "chip"}>
-                {me.role === "viewer" && <Eye className="h-3 w-3 inline mr-1" />}
-                {ROLE_LABEL[me.role] ?? me.role}
-              </span>
-              <button className="btn btn-ghost btn-sm" onClick={signOut} aria-label="Sign out">
-                <LogOut className="h-4 w-4" /> Sign out
+            <>
+              {/* Desktop: full user info */}
+              <div className="hidden md:flex items-center gap-2">
+                <span className="text-sm text-fg-secondary truncate max-w-[160px]">{me.full_name}</span>
+                <span className={ROLE_STYLE[me.role] ?? "chip"}>
+                  {me.role === "viewer" && <Eye className="h-3 w-3 inline mr-1" />}
+                  {ROLE_LABEL[me.role] ?? me.role}
+                </span>
+                <button className="btn btn-ghost btn-sm" onClick={signOut} aria-label="Sign out">
+                  <LogOut className="h-4 w-4" /> Sign out
+                </button>
+              </div>
+              {/* Mobile: compact avatar + sign-out */}
+              <button
+                className="md:hidden btn btn-ghost btn-sm flex items-center gap-1.5"
+                onClick={signOut}
+                aria-label="Sign out"
+              >
+                <span className="h-6 w-6 rounded-full text-[11px] font-bold grid place-items-center text-white"
+                      style={{ background: "var(--gov-navy)" }}>
+                  {me.full_name?.charAt(0)?.toUpperCase() || "U"}
+                </span>
+                <LogOut className="h-3.5 w-3.5 text-fg-tertiary" />
               </button>
-            </div>
+            </>
           ) : (
-            <Link href="/settings" className="btn btn-secondary btn-sm hidden sm:inline-flex">
-              <LogIn className="h-4 w-4" /> Sign in
-            </Link>
+            <>
+              {/* Desktop: full sign-in button */}
+              <Link href="/settings" className="btn btn-secondary btn-sm hidden sm:inline-flex">
+                <LogIn className="h-4 w-4" /> Sign in
+              </Link>
+              {/* Mobile: compact sign-in pill */}
+              <Link href="/settings" className="sm:hidden btn btn-secondary btn-sm text-xs px-3 py-1.5">
+                <LogIn className="h-3.5 w-3.5" /> Sign in
+              </Link>
+            </>
           )}
-          {/* Mobile: show user initial or sign-in */}
-          {me ? (
-            <button
-              className="btn btn-ghost btn-sm md:hidden flex items-center gap-1"
-              onClick={signOut}
-              aria-label="Sign out"
-            >
-              <span className="h-5 w-5 rounded-full text-[10px] font-bold grid place-items-center text-white"
-                    style={{ background: "var(--gov-navy)" }}>
-                {me.full_name?.charAt(0)?.toUpperCase() || "U"}
-              </span>
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
-          ) : (
-            <Link href="/settings" className="btn btn-ghost btn-sm sm:hidden">
-              <LogIn className="h-4 w-4" />
-            </Link>
-          )}
+          <div className="w-px h-5 bg-token opacity-40" aria-hidden="true" />
           <button
             type="button"
             onClick={toggleTheme}
