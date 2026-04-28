@@ -112,6 +112,29 @@ dddd496 fix: header alignment, camera box overflow, settings scroll barrier, Wha
 baf84bd fix: settings mobile dropdown, absolute OG URLs for WhatsApp cache bust
 ```
 
+### Session: 2026-04-28 (10:15–10:35 IST)
+
+**Goal:** Check memory, fix leftover issues, start local servers
+
+#### Issues Fixed:
+1. **EC2 deploy workflow failure** (`deploy-ec2.yml`)
+   - **Root cause:** `git reset --hard` during deploy wiped stale `.next` build artifacts, then `npm run build` failed with `ENOENT pages-manifest.json`, causing `vericash-web.service` to crash on restart
+   - **Fix:** Added `rm -rf .next` before `npm run build` to force a clean build
+   - Increased SSH `timeout` from 120s → 300s and added `command_timeout: 240s` (npm build takes ~90s on t2.micro)
+   - Added `NODE_OPTIONS="--max-old-space-size=512"` for t2.micro's 1GB RAM
+   - Increased service wait from 3s → 8s (Next.js cold-start is slow on micro)
+
+#### Audit Notes:
+- **Backend**: Pipeline, ensemble, scan routes — all clean. ML-anchored scoring (v3) is working correctly. Lab caching eliminates the old 3x-computation inconsistency.
+- **Web**: API client, main page, settings — all solid. Batch scan, compression, auth flows work.
+- **Mobile**: Camera capture, image compression, currency selector, auth banners — clean.
+- **EC2**: Both services `active`, latest commit deployed, health endpoints returning 200.
+
+#### Commits:
+```
+329063c fix: EC2 deploy workflow - clean .next before build, increase timeout, wait for services
+```
+
 ---
 
 ## Key Files & Their Roles
