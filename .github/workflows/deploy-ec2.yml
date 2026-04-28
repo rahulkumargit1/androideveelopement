@@ -22,47 +22,54 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
-          timeout: 120s
+          timeout: 300s
+          command_timeout: 240s
           script: |
             echo "=== VeriCash EC2 Deploy ==="
             cd /home/ubuntu/FAKECURRENCYDETECTION
 
             # Pull latest code
-            echo "[1/4] Pulling latest code..."
+            echo "[1/5] Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
 
             # Update Python dependencies if requirements changed
-            echo "[2/4] Updating backend dependencies..."
+            echo "[2/5] Updating backend dependencies..."
             cd /home/ubuntu/FAKECURRENCYDETECTION/backend
             source .venv/bin/activate
             pip install -r requirements.txt -q 2>/dev/null
             deactivate
 
             # Rebuild web frontend
-            echo "[3/4] Rebuilding web frontend..."
+            echo "[3/5] Rebuilding web frontend..."
             cd /home/ubuntu/FAKECURRENCYDETECTION/web
             echo 'NEXT_PUBLIC_API_URL=https://vericash.duckdns.org' > .env.local
+
+            # Clean stale .next build to prevent pages-manifest.json errors
+            rm -rf .next
+
             npm install --legacy-peer-deps --no-audit --no-fund 2>/dev/null
-            npm run build
+            NODE_OPTIONS="--max-old-space-size=512" npm run build
 
             # Restart services
-            echo "[4/4] Restarting services..."
+            echo "[4/5] Restarting services..."
             sudo systemctl restart vericash
             sudo systemctl restart vericash-web
-            sleep 3
 
-            # Verify
+            # Wait for services to stabilise (t2.micro is slow)
+            echo "[5/5] Verifying services..."
+            sleep 8
+
             API_STATUS=$(sudo systemctl is-active vericash)
             WEB_STATUS=$(sudo systemctl is-active vericash-web)
             echo "Backend: $API_STATUS | Web: $WEB_STATUS"
             if [ "$API_STATUS" = "active" ] && [ "$WEB_STATUS" = "active" ]; then
               echo "✅ VeriCash fully deployed!"
-              curl -sf http://localhost:8001/health || echo "⚠ API health pending..."
+              curl -sf http://localhost:8001/health || echo "⚠ API health pending (cold start)..."
               curl -sf -o /dev/null http://localhost:3000 && echo "✅ Web responding" || echo "⚠ Web pending..."
             else
               echo "❌ Something failed!"
-              sudo journalctl -u vericash --no-pager -n 10
-              sudo journalctl -u vericash-web --no-pager -n 10
+              sudo journalctl -u vericash --no-pager -n 15
+              sudo journalctl -u vericash-web --no-pager -n 15
               exit 1
             fi
