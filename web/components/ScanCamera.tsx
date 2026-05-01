@@ -60,14 +60,15 @@ export default function ScanCamera({ onCapture, busy }: Props) {
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md bg-gov-navy-deep">
         <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
 
-        {/* Frame guide — dashed border */}
-        <div className="pointer-events-none absolute rounded-sm border-2 border-dashed border-white/30" style={{ inset: "clamp(8px, 5%, 24px)" }} />
+        {/* Frame guide — gold dashed border */}
+        <div className="pointer-events-none absolute rounded-sm border-2 border-dashed" style={{ inset: "clamp(8px, 5%, 24px)", borderColor: "rgba(255,188,120,0.5)" }} />
 
         {/* Idle placeholder — constrained inside the dashed frame */}
         {!active && !busy && (
-          <div className="absolute grid place-items-center text-fg-tertiary text-sm" style={{ inset: "clamp(8px, 5%, 24px)" }}>
-            <div className="rounded-md bg-canvas px-3 py-2.5 sm:px-4 sm:py-3 border border-token shadow-sm text-center text-xs sm:text-sm max-w-[90%]">
-              Camera off — start preview, or upload an image
+          <div className="absolute inset-0 flex items-center justify-center" style={{ padding: "clamp(8px, 5%, 24px)" }}>
+            <div className="rounded-md bg-gov-navy/90 backdrop-blur-sm px-4 py-4 border border-gold/40 shadow-lg text-center max-w-[85%]">
+              <div className="text-xs sm:text-sm font-medium text-white/90 mb-1">📷 Ready to scan</div>
+              <p className="text-xs text-white/60">Start camera or upload a note image</p>
             </div>
           </div>
         )}
